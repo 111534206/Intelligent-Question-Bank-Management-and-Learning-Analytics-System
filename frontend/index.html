@@ -1,0 +1,1247 @@
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧題庫管理與學習分析系統</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+<style>
+  :root{
+    --teal-900:#04342C;
+    --teal-800:#085041;
+    --teal-600:#0F6E56;
+    --teal-500:#279E7C;
+    --teal-400:#1D9E75;
+    --teal-200:#5DCAA5;
+    --teal-100:#9FE1CB;
+    --teal-50:#E1F5EE;
+    --header-bg:#4FB899;
+    --header-text:#053225;
+    --blue-800:#0C447C;
+    --blue-600:#185FA5;
+    --blue-400:#378ADD;
+    --blue-100:#B5D4F4;
+    --blue-50:#E6F1FB;
+    --amber-50:#FAEEDA;
+    --amber-600:#854F0B;
+    --red-50:#FCEBEB;
+    --red-600:#A32D2D;
+    --ink:#1c2624;
+    --ink-soft:#5b6a67;
+    --ink-mute:#8a9895;
+    --line:#d9e4e1;
+    --bg-page:#f3f7f6;
+    --bg-card:#ffffff;
+    --radius:10px;
+    --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--font);
+    background:var(--bg-page);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+  }
+
+  /* ---------- Header ---------- */
+  header.topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 28px;
+    height:76px;
+    background:var(--header-bg);
+    color:var(--header-text);
+    flex-shrink:0;
+    position:sticky;
+    top:0;
+    z-index:20;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:16px;
+    font-weight:500;
+    letter-spacing:0.2px;
+  }
+  .brand i{font-size:22px;color:var(--teal-800);}
+  .role-switcher{
+    display:flex;
+    gap:4px;
+    background:rgba(4,52,44,0.08);
+    padding:5px;
+    border-radius:999px;
+  }
+  .role-btn{
+    border:none;
+    background:transparent;
+    color:rgba(4,52,44,0.6);
+    font-size:13px;
+    padding:8px 18px;
+    border-radius:999px;
+    cursor:pointer;
+    font-family:var(--font);
+    transition:background 0.15s, color 0.15s;
+  }
+  .role-btn.active{
+    background:#ffffff;
+    color:var(--teal-800);
+    font-weight:500;
+  }
+  .role-btn:hover:not(.active){
+    color:var(--teal-900);
+  }
+  .topbar-right{
+    display:flex;
+    align-items:center;
+    gap:20px;
+  }
+  .icon-btn{
+    font-size:19px;
+    color:var(--teal-900);
+    opacity:0.7;
+    cursor:pointer;
+    position:relative;
+  }
+  .icon-btn .dot{
+    position:absolute;
+    top:-2px;right:-2px;
+    width:7px;height:7px;
+    background:#F2A623;
+    border-radius:50%;
+    border:1.5px solid var(--header-bg);
+  }
+  .user-chip{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    font-size:13px;
+    cursor:pointer;
+    padding:6px 10px 6px 6px;
+    border-radius:999px;
+    transition:background 0.15s;
+  }
+  .user-chip:hover{background:rgba(4,52,44,0.08);}
+  .avatar{
+    width:32px;height:32px;
+    border-radius:50%;
+    background:var(--teal-800);
+    color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:500;
+    flex-shrink:0;
+  }
+
+  /* ---------- Body layout ---------- */
+  .body-wrap{
+    display:flex;
+    flex:1;
+  }
+  aside.sidebar{
+    width:208px;
+    background:#fff;
+    border-right:1px solid var(--line);
+    flex-shrink:0;
+    padding:16px 0;
+  }
+  .side-section-label{
+    font-size:11px;
+    color:var(--ink-mute);
+    padding:4px 20px 8px;
+    letter-spacing:0.4px;
+  }
+  .nav-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:9px 20px;
+    font-size:13.5px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    border-left:3px solid transparent;
+    white-space:nowrap;
+  }
+  .nav-item i{font-size:17px;width:18px;text-align:center;flex-shrink:0;}
+  .nav-item:hover{background:var(--teal-50);color:var(--teal-900);}
+  .nav-item.active{
+    background:var(--teal-50);
+    color:var(--teal-800);
+    border-left-color:var(--teal-600);
+    font-weight:500;
+  }
+  .nav-note{
+    font-size:10.5px;
+    color:var(--ink-mute);
+    margin-left:auto;
+    background:var(--amber-50);
+    color:var(--amber-600);
+    padding:1px 6px;
+    border-radius:999px;
+  }
+
+  main.content{
+    flex:1;
+    padding:24px 32px 48px;
+    min-width:0;
+  }
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .page-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .page-head h1{
+    font-size:19px;
+    font-weight:500;
+    margin:0;
+    color:var(--ink);
+  }
+  .page-sub{
+    font-size:12.5px;
+    color:var(--ink-mute);
+    margin-top:2px;
+  }
+
+  button.primary{
+    background:var(--teal-600);
+    color:#fff;
+    border:none;
+    font-size:13px;
+    padding:8px 16px;
+    border-radius:8px;
+    cursor:pointer;
+    display:flex;align-items:center;gap:6px;
+    font-family:var(--font);
+  }
+  button.primary:hover{background:var(--teal-800);}
+  button.ghost{
+    background:#fff;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+    font-size:13px;
+    padding:8px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    display:flex;align-items:center;gap:6px;
+    font-family:var(--font);
+  }
+  button.ghost:hover{border-color:var(--teal-400);color:var(--teal-800);}
+
+  /* cards / grid */
+  .card{
+    background:var(--bg-card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px 18px;
+  }
+  .grid{display:grid;gap:14px;}
+  .grid-4{grid-template-columns:repeat(4,1fr);}
+  .grid-3{grid-template-columns:repeat(3,1fr);}
+  .grid-2{grid-template-columns:repeat(2,1fr);}
+  @media(max-width:980px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-3{grid-template-columns:repeat(2,1fr);}}
+
+  .metric-card .label{font-size:12.5px;color:var(--ink-mute);margin-bottom:6px;}
+  .metric-card .value{font-size:24px;font-weight:500;color:var(--ink);}
+  .metric-card .delta{font-size:11.5px;color:var(--teal-600);margin-top:4px;}
+
+  .section-title{
+    font-size:14px;
+    font-weight:500;
+    margin:26px 0 10px;
+    color:var(--ink);
+  }
+  .section-title:first-child{margin-top:0;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    text-align:left;
+    background:var(--blue-50);
+    color:var(--blue-800);
+    font-weight:500;
+    padding:9px 12px;
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:9px 12px;
+    border-top:1px solid var(--line);
+    color:var(--ink-soft);
+  }
+  tbody tr:hover{background:#fafcfb;}
+  .tag{
+    display:inline-block;
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:999px;
+  }
+  .tag.pdf{background:var(--blue-50);color:var(--blue-800);}
+  .tag.ai{background:var(--teal-50);color:var(--teal-800);}
+  .tag.manual{background:var(--amber-50);color:var(--amber-600);}
+  .tag.high{background:var(--red-50);color:var(--red-600);}
+  .tag.low{background:var(--teal-50);color:var(--teal-800);}
+  .row-actions i{font-size:15px;color:var(--ink-mute);margin-right:10px;cursor:pointer;}
+  .row-actions i:hover{color:var(--teal-700);}
+
+  .filter-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  select, input[type=text], input[type=number]{
+    font-family:var(--font);
+    font-size:13px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fff;
+    color:var(--ink);
+  }
+  select{min-width:110px;}
+  input[type=text]{flex:1;min-width:160px;}
+
+  .upload-box{
+    border:1.5px dashed var(--line);
+    border-radius:var(--radius);
+    padding:36px 20px;
+    text-align:center;
+    color:var(--ink-mute);
+    font-size:13px;
+    background:#fafcfb;
+  }
+  .upload-box i{font-size:28px;color:var(--teal-400);display:block;margin-bottom:10px;}
+  .filetypes{display:flex;gap:8px;justify-content:center;margin-top:12px;}
+  .filetypes span{
+    font-size:11px;
+    padding:3px 9px;
+    border-radius:6px;
+    background:var(--teal-50);
+    color:var(--teal-800);
+  }
+
+  .weak-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12.5px;}
+  .weak-bar-row .unit-name{width:110px;flex-shrink:0;color:var(--ink-soft);}
+  .weak-bar-track{flex:1;height:10px;background:var(--line);border-radius:6px;overflow:hidden;}
+  .weak-bar-fill{height:100%;border-radius:6px;}
+  .weak-bar-pct{width:38px;text-align:right;color:var(--ink-mute);flex-shrink:0;}
+
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-top:1px solid var(--line);font-size:13px;}
+  .toggle-row:first-child{border-top:none;}
+  .switch{width:36px;height:20px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;flex-shrink:0;}
+  .switch.on{background:var(--teal-600);}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .15s;}
+  .switch.on::after{transform:translateX(16px);}
+
+  .placeholder-card{
+    background:var(--bg-card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:40px 24px;
+    text-align:center;
+    color:var(--ink-mute);
+    font-size:13px;
+  }
+  .placeholder-card i{font-size:26px;color:var(--teal-200);display:block;margin-bottom:10px;}
+
+  .badge-locked{
+    font-size:11px;
+    color:var(--amber-600);
+    background:var(--amber-50);
+    padding:2px 8px;
+    border-radius:999px;
+    margin-left:8px;
+  }
+  .perm-note{
+    font-size:12px;
+    color:var(--ink-mute);
+    background:var(--amber-50);
+    border:1px solid #f0d9a8;
+    border-radius:8px;
+    padding:10px 14px;
+    margin-bottom:16px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .perm-note i{color:var(--amber-600);font-size:15px;}
+
+  .announce-item{
+    padding:12px 0;
+    border-top:1px solid var(--line);
+  }
+  .announce-item:first-child{border-top:none;}
+  .announce-item .a-title{font-size:13.5px;font-weight:500;color:var(--ink);margin-bottom:3px;}
+  .announce-item .a-meta{font-size:11.5px;color:var(--ink-mute);}
+
+  .fk-list{display:flex;flex-direction:column;gap:10px;}
+  .fk-item{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid var(--line);border-radius:8px;}
+  .fk-item .fk-title{font-size:13px;color:var(--ink);}
+  .fk-item .fk-sub{font-size:11.5px;color:var(--ink-mute);margin-top:2px;}
+
+  footer.footbar{
+    text-align:center;
+    padding:16px;
+    background:var(--header-bg);
+    color:rgba(4,52,44,0.75);
+    font-size:11.5px;
+    flex-shrink:0;
+  }
+
+  /* ---------- Login page ---------- */
+  .login-screen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:linear-gradient(180deg, var(--teal-50) 0%, var(--bg-page) 100%);
+    padding:24px;
+  }
+  .login-card{
+    width:100%;
+    max-width:380px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:36px 32px;
+    box-shadow:0 4px 24px rgba(4,52,44,0.06);
+  }
+  .login-logo{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    justify-content:center;
+    margin-bottom:6px;
+  }
+  .login-logo i{font-size:26px;color:var(--teal-600);}
+  .login-logo span{font-size:16px;font-weight:500;color:var(--ink);}
+  .login-sub{
+    text-align:center;
+    font-size:12.5px;
+    color:var(--ink-mute);
+    margin-bottom:26px;
+  }
+  .login-field{margin-bottom:14px;}
+  .login-field label{
+    display:block;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  .login-field input{
+    width:100%;
+    padding:10px 12px;
+  }
+  .login-role-select{
+    display:flex;
+    gap:6px;
+    margin-bottom:18px;
+    background:var(--teal-50);
+    padding:4px;
+    border-radius:8px;
+  }
+  .login-role-select button{
+    flex:1;
+    border:none;
+    background:transparent;
+    padding:7px 4px;
+    font-size:12px;
+    border-radius:6px;
+    cursor:pointer;
+    font-family:var(--font);
+    color:var(--teal-800);
+  }
+  .login-role-select button.active{
+    background:#fff;
+    font-weight:500;
+    box-shadow:0 1px 3px rgba(4,52,44,0.1);
+  }
+  .login-btn{
+    width:100%;
+    justify-content:center;
+    padding:11px;
+    font-size:13.5px;
+    margin-top:4px;
+  }
+  .login-foot{
+    text-align:center;
+    font-size:11.5px;
+    color:var(--ink-mute);
+    margin-top:18px;
+  }
+
+  ::-webkit-scrollbar{height:8px;width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;}
+
+  /* ---------- Exam taking screen ---------- */
+  .exam-topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px 20px;
+    margin-bottom:16px;
+  }
+  .exam-title{font-size:15px;font-weight:500;color:var(--ink);}
+  .exam-sub{font-size:12px;color:var(--ink-mute);margin-top:2px;}
+  .exam-timer{
+    display:flex;align-items:center;gap:8px;
+    font-size:16px;font-weight:500;
+    color:var(--red-600);
+    background:var(--red-50);
+    padding:8px 16px;
+    border-radius:999px;
+  }
+  .exam-body{display:flex;gap:18px;align-items:flex-start;}
+  .exam-main{flex:1;min-width:0;}
+  .exam-side{width:230px;flex-shrink:0;}
+  .exam-question-card{padding:26px 28px;}
+  .exam-q-text{font-size:15.5px;color:var(--ink);line-height:1.7;margin-bottom:22px;}
+  .exam-options{display:flex;flex-direction:column;gap:10px;}
+  .exam-option{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:13px 16px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .exam-option:hover{border-color:var(--teal-400);background:var(--teal-50);}
+  .exam-option.selected{border-color:var(--teal-600);background:var(--teal-50);}
+  .exam-option input{margin:0;accent-color:var(--teal-600);flex-shrink:0;}
+  .exam-opt-letter{
+    width:24px;height:24px;
+    border-radius:50%;
+    background:var(--blue-50);
+    color:var(--blue-800);
+    font-size:12px;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+    font-weight:500;
+  }
+  .exam-option.selected .exam-opt-letter{background:var(--teal-600);color:#fff;}
+  .exam-opt-text{font-size:13.5px;color:var(--ink-soft);}
+  .exam-nav-buttons{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-top:18px;
+  }
+  .exam-grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .exam-num{
+    aspect-ratio:1;
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:8px;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    font-family:var(--font);
+  }
+  .exam-num.done{background:var(--teal-50);border-color:var(--teal-200);color:var(--teal-800);}
+  .exam-num.current{background:var(--teal-600);border-color:var(--teal-600);color:#fff;font-weight:500;}
+  .exam-legend{display:flex;flex-direction:column;gap:6px;font-size:11.5px;color:var(--ink-mute);}
+  .exam-legend div{display:flex;align-items:center;gap:7px;}
+  .exam-legend .dot{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
+  .exam-legend .dot.done{background:var(--teal-200);}
+  .exam-legend .dot.current{background:var(--teal-600);}
+  .exam-legend .dot.todo{background:var(--line);}
+</style>
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo"><i class="ti ti-books"></i><span>教育大市集</span></div>
+    <div class="login-sub">智慧題庫管理與學習分析系統</div>
+
+    <div class="login-role-select" id="loginRoleSelect">
+      <button class="active" data-role="teacher">老師</button>
+      <button data-role="assistant">小老師</button>
+      <button data-role="student">學生</button>
+      <button data-role="admin">管理者</button>
+    </div>
+
+    <div class="login-field">
+      <label>帳號</label>
+      <input type="text" placeholder="請輸入帳號">
+    </div>
+    <div class="login-field">
+      <label>密碼</label>
+      <input type="password" placeholder="請輸入密碼">
+    </div>
+
+    <button class="primary login-btn" id="loginSubmit"><i class="ti ti-login-2"></i>登入</button>
+    <div class="login-foot">忘記密碼？請聯絡系統管理員</div>
+  </div>
+</div>
+
+<div class="app" id="mainApp" style="display:none;">
+
+  <header class="topbar">
+    <div class="brand"><i class="ti ti-books"></i>教育大市集｜智慧題庫管理與學習分析系統</div>
+    <div class="role-switcher" id="roleSwitcher">
+      <button class="role-btn active" data-role="teacher">老師</button>
+      <button class="role-btn" data-role="assistant">小老師</button>
+      <button class="role-btn" data-role="student">學生</button>
+      <button class="role-btn" data-role="admin">管理者</button>
+    </div>
+    <div class="topbar-right">
+      <div class="icon-btn"><i class="ti ti-bell"></i><span class="dot"></span></div>
+      <div class="user-chip" id="userChip">
+        <div class="avatar" id="userAvatar">王</div>
+        <span id="userName">王老師</span>
+        <i class="ti ti-chevron-down" style="font-size:14px;opacity:0.6;"></i>
+      </div>
+    </div>
+  </header>
+
+  <div class="body-wrap">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="content" id="content"></main>
+  </div>
+
+  <footer class="footbar">© 2026 教育大市集（Education Marketplace）· 智慧題庫管理與學習分析系統</footer>
+</div>
+
+<script>
+/* ============ Role & Nav Config ============ */
+const roles = {
+  teacher: {
+    name: "王老師", avatar: "王",
+    nav: [
+      {id:"t-dash", icon:"ti-layout-dashboard", label:"儀表板"},
+      {id:"t-import", icon:"ti-upload", label:"題庫匯入"},
+      {id:"t-bank", icon:"ti-folder", label:"題庫管理"},
+      {id:"t-folder", icon:"ti-files", label:"學習資料夾"},
+      {id:"t-paper", icon:"ti-clipboard-list", label:"固定試卷"},
+      {id:"t-analysis", icon:"ti-chart-bar", label:"成效分析"},
+      {id:"t-perm", icon:"ti-users", label:"小老師權限"},
+      {id:"t-announce", icon:"ti-speakerphone", label:"課程公告"},
+      {id:"t-course", icon:"ti-school", label:"課程管理"},
+    ],
+    default:"t-dash"
+  },
+  assistant: {
+    name: "李小老師", avatar: "李",
+    nav: [
+      {id:"a-dash", icon:"ti-layout-dashboard", label:"儀表板"},
+      {id:"a-import", icon:"ti-upload", label:"題庫匯入", locked:true},
+      {id:"a-bank", icon:"ti-folder", label:"題庫管理", locked:true},
+      {id:"a-folder", icon:"ti-files", label:"跨文件統整測驗", locked:true},
+      {id:"a-announce", icon:"ti-speakerphone", label:"課程公告"},
+    ],
+    default:"a-dash"
+  },
+  student: {
+    name: "陳同學", avatar: "陳",
+    nav: [
+      {id:"s-home", icon:"ti-home", label:"首頁"},
+      {id:"s-quiz", icon:"ti-pencil", label:"開始測驗"},
+      {id:"s-weak", icon:"ti-target-arrow", label:"弱點分析"},
+      {id:"s-wrong", icon:"ti-repeat", label:"錯題本"},
+      {id:"s-remind", icon:"ti-clock", label:"複習提醒"},
+      {id:"s-analysis", icon:"ti-chart-line", label:"學習成效分析"},
+      {id:"s-bankinfo", icon:"ti-database", label:"題庫資訊"},
+      {id:"s-record", icon:"ti-history", label:"自我評量紀錄"},
+      {id:"s-announce", icon:"ti-speakerphone", label:"課程公告"},
+    ],
+    default:"s-home"
+  },
+  admin: {
+    name: "系統管理員", avatar: "管",
+    nav: [
+      {id:"m-dash", icon:"ti-layout-dashboard", label:"儀表板"},
+      {id:"m-account", icon:"ti-user-cog", label:"帳號管理"},
+      {id:"m-perm", icon:"ti-shield-lock", label:"權限設定"},
+      {id:"m-announce", icon:"ti-speakerphone", label:"系統公告"},
+      {id:"m-usage", icon:"ti-chart-donut", label:"系統用量"},
+      {id:"m-log", icon:"ti-alert-triangle", label:"錯誤紀錄"},
+      {id:"m-course", icon:"ti-school", label:"課程資料管理"},
+    ],
+    default:"m-dash"
+  }
+};
+
+/* ============ Render sidebar ============ */
+function renderSidebar(roleKey){
+  const role = roles[roleKey];
+  const sidebar = document.getElementById('sidebar');
+  sidebar.innerHTML = '<div class="side-section-label">功能選單</div>' +
+    role.nav.map(item => `
+      <div class="nav-item" data-panel="${item.id}">
+        <i class="ti ${item.icon}"></i>
+        <span>${item.label}</span>
+        ${item.locked ? '<span class="nav-note">需授權</span>' : ''}
+      </div>
+    `).join('');
+
+  sidebar.querySelectorAll('.nav-item').forEach(el=>{
+    el.addEventListener('click', ()=> showPanel(el.dataset.panel));
+  });
+}
+
+function showPanel(panelId){
+  document.querySelectorAll('.nav-item').forEach(el=>{
+    el.classList.toggle('active', el.dataset.panel === panelId);
+  });
+  document.querySelectorAll('.panel').forEach(el=>{
+    el.classList.toggle('active', el.id === panelId);
+  });
+}
+
+const roleLabel = {teacher:"老師", assistant:"小老師", student:"學生", admin:"管理者"};
+
+function switchRole(roleKey){
+  document.querySelectorAll('.role-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.role === roleKey);
+  });
+  const role = roles[roleKey];
+  document.getElementById('userName').textContent = role.name;
+  document.getElementById('userAvatar').textContent = role.avatar;
+  renderSidebar(roleKey);
+  showPanel(role.default);
+
+  const pName = document.getElementById('profileName');
+  const pAvatar = document.getElementById('profileAvatar');
+  const pRole = document.getElementById('profileRole');
+  if(pName){ pName.textContent = role.name; pAvatar.textContent = role.avatar; pRole.textContent = roleLabel[roleKey]; }
+}
+
+document.getElementById('roleSwitcher').addEventListener('click', e=>{
+  const btn = e.target.closest('.role-btn');
+  if(btn) switchRole(btn.dataset.role);
+});
+
+/* ============ Login ============ */
+let loginRole = 'teacher';
+document.getElementById('loginRoleSelect').addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  document.querySelectorAll('#loginRoleSelect button').forEach(b=>b.classList.toggle('active', b===btn));
+  loginRole = btn.dataset.role;
+});
+document.getElementById('loginSubmit').addEventListener('click', ()=>{
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'flex';
+  switchRole(loginRole);
+});
+
+/* ============ Profile page ============ */
+document.getElementById('userChip').addEventListener('click', ()=>{
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(el=>el.classList.remove('active'));
+  document.getElementById('profile-panel').classList.add('active');
+});
+</script>
+
+<!-- ================= CONTENT PANELS ================= -->
+<div style="display:none" id="panelHost"></div>
+<script>
+document.getElementById('content').innerHTML = `
+
+<!-- ========== 個人資料（四角色共用，未來將分開設計） ========== -->
+<div class="panel" id="profile-panel">
+  <div class="page-head"><div><h1>個人資料</h1><div class="page-sub">目前為共用版面，未來將依角色分開設計</div></div></div>
+  <div class="card" style="max-width:520px;">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+      <div class="avatar" id="profileAvatar" style="width:56px;height:56px;font-size:20px;">王</div>
+      <div>
+        <div style="font-size:16px;font-weight:500;" id="profileName">王老師</div>
+        <div style="font-size:12.5px;color:var(--ink-mute);" id="profileRole">老師</div>
+      </div>
+    </div>
+    <div class="login-field"><label>姓名</label><input type="text" value="王小明"></div>
+    <div class="login-field"><label>Email</label><input type="text" value="teacher.wang@example.edu.tw"></div>
+    <div class="login-field"><label>聯絡電話</label><input type="text" value="0912-345-678"></div>
+    <div class="login-field"><label>所屬科系</label><input type="text" value="自然科學科"></div>
+    <button class="primary" style="margin-top:6px;"><i class="ti ti-device-floppy"></i>儲存變更</button>
+  </div>
+</div>
+
+<!-- ========== 老師 ========== -->
+<div class="panel" id="t-dash">
+  <div class="page-head"><div><h1>儀表板</h1><div class="page-sub">班級與題庫概況總覽</div></div></div>
+  <div class="grid grid-4">
+    <div class="card metric-card"><div class="label">題庫總題數</div><div class="value">1,284</div><div class="delta">本週新增 32 題</div></div>
+    <div class="card metric-card"><div class="label">班級平均答對率</div><div class="value">76%</div><div class="delta">較上週 +3%</div></div>
+    <div class="card metric-card"><div class="label">待確認 AI 匯入題目</div><div class="value">18</div><div class="delta" style="color:var(--amber-600)">需人工確認</div></div>
+    <div class="card metric-card"><div class="label">小老師人數</div><div class="value">3</div><div class="delta">已授權管理權限</div></div>
+  </div>
+  <div class="section-title">單元答對率總覽</div>
+  <div class="card">
+    <div class="weak-bar-row"><div class="unit-name">力學</div><div class="weak-bar-track"><div class="weak-bar-fill" style="width:82%;background:var(--teal-400)"></div></div><div class="weak-bar-pct">82%</div></div>
+    <div class="weak-bar-row"><div class="unit-name">電磁學</div><div class="weak-bar-track"><div class="weak-bar-fill" style="width:54%;background:#F2A623"></div></div><div class="weak-bar-pct">54%</div></div>
+    <div class="weak-bar-row"><div class="unit-name">波動與光學</div><div class="weak-bar-track"><div class="weak-bar-fill" style="width:38%;background:#E24B4A"></div></div><div class="weak-bar-pct">38%</div></div>
+    <div class="weak-bar-row"><div class="unit-name">熱力學</div><div class="weak-bar-track"><div class="weak-bar-fill" style="width:71%;background:var(--teal-400)"></div></div><div class="weak-bar-pct">71%</div></div>
+  </div>
+</div>
+
+<div class="panel" id="t-import">
+  <div class="page-head"><div><h1>題庫匯入</h1><div class="page-sub">支援 PDF、Excel 等格式，系統自動擷取題目與答案</div></div></div>
+  <div class="upload-box">
+    <i class="ti ti-cloud-upload"></i>
+    將檔案拖曳到此處，或點擊選擇檔案上傳
+    <div class="filetypes"><span>PDF</span><span>Excel</span><span>圖片（OCR）</span></div>
+  </div>
+  <div class="section-title">待確認題目（AI 自動擷取）</div>
+  <div class="card" style="padding:0;overflow:auto;">
+    <table>
+      <thead><tr><th>題目內容</th><th>來源檔案</th><th>擷取信心度</th><th>狀態</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td>下列何者為牛頓第二運動定律的公式？</td><td>物理講義ch3.pdf</td><td><span class="tag ai">92%</span></td><td>待確認</td><td class="row-actions"><i class="ti ti-check"></i><i class="ti ti-edit"></i><i class="ti ti-x"></i></td></tr>
+        <tr><td>下列選項中，何者屬於等加速度運動？</td><td>物理講義ch3.pdf</td><td><span class="tag ai">88%</span></td><td>待確認</td><td class="row-actions"><i class="ti ti-check"></i><i class="ti ti-edit"></i><i class="ti ti-x"></i></td></tr>
+        <tr><td>波的干涉現象發生的條件為何？</td><td>光學單元.xlsx</td><td><span class="tag manual">65%</span></td><td>需人工修正</td><td class="row-actions"><i class="ti ti-check"></i><i class="ti ti-edit"></i><i class="ti ti-x"></i></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel" id="t-bank">
+  <div class="page-head">
+    <div><h1>題庫管理</h1><div class="page-sub">瀏覽、編輯、分類與搜尋題庫</div></div>
+    <button class="primary"><i class="ti ti-plus"></i>新增題目</button>
+  </div>
+  <div class="filter-bar">
+    <select><option>科系</option></select>
+    <select><option>科目</option></select>
+    <select><option>單元</option></select>
+    <input type="text" placeholder="搜尋題目關鍵字">
+  </div>
+  <div class="card" style="padding:0;overflow:auto;">
+    <table>
+      <thead><tr><th>題目</th><th>科目</th><th>單元</th><th>來源</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td>下列何者為牛頓第二運動定律的公式？</td><td>物理</td><td>力學</td><td><span class="tag pdf">PDF匯入</span></td><td class="row-actions"><i class="ti ti-edit"></i><i class="ti ti-trash"></i></td></tr>
+        <tr><td>細胞膜的主要成分是什麼？</td><td>生物</td><td>細胞學</td><td><span class="tag ai">AI產生</span></td><td class="row-actions"><i class="ti ti-edit"></i><i class="ti ti-trash"></i></td></tr>
+        <tr><td>請計算此三角函數的值。</td><td>數學</td><td>三角函數</td><td><span class="tag manual">教師手動</span></td><td class="row-actions"><i class="ti ti-edit"></i><i class="ti ti-trash"></i></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel" id="t-folder">
+  <div class="page-head"><div><h1>學習資料夾</h1><div class="page-sub">放入多份教材，系統交叉比對生成跨章節統整題</div></div>
+    <button class="primary"><i class="ti ti-folder-plus"></i>建立資料夾</button>
+  </div>
+  <div class="fk-list">
+    <div class="fk-item"><div><div class="fk-title">高三物理 — 期末總複習</div><div class="fk-sub">3 份教材（PPT、PDF）· 已生成 12 題統整題</div></div><button class="ghost">開啟</button></div>
+    <div class="fk-item"><div><div class="fk-title">生物：細胞與遺傳</div><div class="fk-sub">2 份教材（PDF）· 已生成 8 題統整題</div></div><button class="ghost">開啟</button></div>
+  </div>
+</div>
+
+<div class="panel" id="t-paper">
+  <div class="page-head"><div><h1>固定試卷</h1><div class="page-sub">設定測驗條件，建立可重複使用的固定試卷</div></div>
+    <button class="primary"><i class="ti ti-plus"></i>建立試卷</button>
+  </div>
+  <div class="card" style="padding:0;overflow:auto;">
+    <table>
+      <thead><tr><th>試卷名稱</th><th>科目</th><th>題數</th><th>作答時間</th><th>使用次數</th></tr></thead>
+      <tbody>
+        <tr><td>期中模擬考 A 卷</td><td>物理</td><td>30 題</td><td>50 分鐘</td><td>142</td></tr>
+        <tr><td>單元小考：力學</td><td>物理</td><td>15 題</td><td>20 分鐘</td><td>89</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel" id="t-analysis">
+  <div class="page-head"><div><h1>成效分析</h1><div class="page-sub">班級與個人答題狀況統計</div></div></div>
+  <div class="grid grid-3">
+    <div class="card metric-card"><div class="label">班級平均分</div><div class="value">78.4</div></div>
+    <div class="card metric-card"><div class="label">最低答對率單元</div><div class="value">波動光學</div></div>
+    <div class="card metric-card"><div class="label">本月測驗次數</div><div class="value">312</div></div>
+  </div>
+  <div class="section-title">單題答對率</div>
+  <div class="card" style="padding:0;overflow:auto;">
+    <table>
+      <thead><tr><th>題目</th><th>單元</th><th>作答人數</th><th>答對率</th></tr></thead>
+      <tbody>
+        <tr><td>下列何者為牛頓第二運動定律的公式？</td><td>力學</td><td>112</td><td><span class="tag low">85%</span></td></tr>
+        <tr><td>波的干涉現象發生的條件為何？</td><td>波動光學</td><td>98</td><td><span class="tag high">41%</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel" id="t-perm">
+  <div class="page-head"><div><h1>小老師權限設定</h1><div class="page-sub">授權小老師可以使用的功能</div></div></div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div style="font-size:13.5px;font-weight:500;">李小老師</div>
+    </div>
+    <div class="toggle-row"><span>題庫匯入</span><div class="switch on"></div></div>
+    <div class="toggle-row"><span>題庫管理</span><div class="switch on"></div></div>
+    <div class="toggle-row"><span>跨文件綜合統整測驗</span><div class="switch"></div></div>
+  </div>
+</div>
+
+<div class="panel" id="t-announce">
+  <div class="page-head"><div><h1>課程公告</h1><div class="page-sub">發布公告給班級學生與小老師</div></div>
+    <button class="primary"><i class="ti ti-plus"></i>發布公告</button>
+  </div>
+  <div class="card">
+    <div class="announce-item"><div class="a-title">期中考範圍公告：第 1～5 章</div><div class="a-meta">2026-08-20 發布</div></div>
+    <div class="announce-item"><div class="a-title">本週三停課一次，測驗延期</div><div class="a-meta">2026-08-18 發布</div></div>
+  </div>
+</div>
+
+<div class="panel" id="t-course">
+  <div class="page-head"><div><h1>課程管理</h1><div class="page-sub">新增、編輯、刪除課程基本資料</div></div>
+    <button class="primary"><i class="ti ti-plus"></i>新增課程</button>
+  </div>
+  <div class="card" style="padding:0;overflow:auto;">
+    <table>
+      <thead><tr><th>課程名稱</th><th>科系</th><th>學生人數</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td>高三物理（甲班）</td><td>自然組</td><td>34</td><td class="row-actions"><i class="ti ti-edit"></i><i class="ti ti-trash"></i></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== 小老師 ========== -->
+<div class="panel" id="a-dash">
+  <div class="page-head"><div><h1>儀表板</h1><div class="page-sub">目前被開放使用的功能</div></div></div>
+  <div class="grid grid-2">
+    <div class="card"><i class="ti ti-check" style="color:var(--teal-600);margin-right:8px;"></i>題庫匯入 — 已開放</div>
+    <div class="card"><i class="ti ti-check" style="color:var(--teal-600);margin-right:8px;"></i>題庫管理 — 已開放</div>
+    <div class="card"><i class="ti ti-lock" style="color:var(--ink-mute);margin-right:8px;"></i>跨文件綜合統整測驗 — 未開放</div>
+  </div>
+</div>
+<div class="panel" id="a-import">
+  <div class="page-head"><div><h1>題庫匯入</h1><div class="page-sub">協助老師建立題庫</div></div></div>
+  <div class="upload-box"><i class="ti ti-cloud-upload"></i>將檔案拖曳到此處，或點擊選擇檔案上傳<div class="filetypes"><span>PDF</span><span>Excel</span></div></div>
+</div>
+<div class="panel" id="a-bank">
+  <div class="page-head"><div><h1>題庫管理</h1><div class="page-sub">瀏覽、編輯題庫內容</div></div></div>
+  <div class="card" style="padding:0;overflow:auto;">
+    <table><thead><tr><th>題目</th><th>科目</th><th>單元</th><th>操作</th></tr></thead>
+    <tbody><tr><td>下列何者為牛頓第二運動定律的公式？</td><td>物理</td><td>力學</td><td class="row-actions"><i class="ti ti-edit"></i></td></tr></tbody></table>
+  </div>
+</div>
+<div class="panel" id="a-folder">
+  <div class="page-head"><div><h1>跨文件綜合統整測驗</h1><div class="page-sub">此功能需老師授權後才能使用</div></div></div>
+  <div class="perm-note"><i class="ti ti-lock"></i>目前尚未取得此功能的使用權限，請聯絡授課老師開通。</div>
+</div>
+<div class="panel" id="a-announce">
+  <div class="page-head"><div><h1>課程公告</h1></div></div>
+  <div class="card">
+    <div class="announce-item"><div class="a-title">期中考範圍公告：第 1～5 章</div><div class="a-meta">2026-08-20 發布</div></div>
+  </div>
+</div>
+
+<!-- ========== 學生 ========== -->
+<div class="panel" id="s-home">
+  <div class="page-head"><div><h1>首頁</h1><div class="page-sub">今日待複習與學習概況</div></div></div>
+  <div class="grid grid-3">
+    <div class="card metric-card"><div class="label">今日待複習錯題</div><div class="value">6</div><div class="delta" style="color:var(--amber-600)">第 3 天複習提醒</div></div>
+    <div class="card metric-card"><div class="label">本週練習題數</div><div class="value">84</div></div>
+    <div class="card metric-card"><div class="label">整體答對率</div><div class="value">73%</div></div>
+  </div>
+  <div class="section-title">課程公告</div>
+  <div class="card">
+    <div class="announce-item"><div class="a-title">期中考範圍公告：第 1～5 章</div><div class="a-meta">2026-08-20 發布</div></div>
+  </div>
+</div>
+
+<div class="panel" id="s-quiz">
+  <div class="page-head"><div><h1>開始測驗</h1><div class="page-sub">選擇練習範圍與作答設定</div></div></div>
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="section-title" style="margin-top:0;">選擇範圍</div>
+      <div class="filter-bar" style="margin-bottom:10px;">
+        <select><option>科系</option></select>
+        <select><option>科目</option></select>
+        <select><option>單元</option></select>
+      </div>
+      <button class="ghost" style="width:100%;justify-content:center;">或選擇固定試卷</button>
+    </div>
+    <div class="card">
+      <div class="section-title" style="margin-top:0;">作答設定</div>
+      <div class="toggle-row" style="border-top:none;padding-top:0;"><span>題目數量</span><input type="number" value="20" style="width:70px;"></div>
+      <div class="toggle-row"><span>作答時間（分鐘）</span><input type="number" value="30" style="width:70px;"></div>
+      <div class="toggle-row"><span>出題模式：隨機</span><select style="min-width:100px;"><option>隨機</option><option>專挑弱點</option><option>挑沒練過的</option></select></div>
+      <div class="toggle-row"><span>答案選項隨機排列</span><div class="switch on"></div></div>
+      <div class="toggle-row"><span>題目顯示隨機排列</span><div class="switch on"></div></div>
+      <div class="toggle-row"><span>作答後無法更改答案</span><div class="switch"></div></div>
+    </div>
+  </div>
+  <div style="margin-top:16px;"><button class="primary" id="startExamBtn"><i class="ti ti-player-play"></i>開始測驗</button></div>
+</div>
+
+<div class="panel" id="s-taking">
+  <div class="exam-topbar">
+    <div>
+      <div class="exam-title">物理 · 力學單元練習</div>
+      <div class="exam-sub">第 <span id="examCurrentNo">8</span> 題 / 共 20 題</div>
+    </div>
+    <div class="exam-timer"><i class="ti ti-clock"></i><span id="examTimer">24:35</span></div>
+  </div>
+
+  <div class="exam-body">
+    <div class="exam-main">
+      <div class="card exam-question-card">
+        <div class="exam-q-text">下列關於牛頓第二運動定律 F = ma 的敘述，何者正確？</div>
+        <div class="exam-options">
+          <label class="exam-option">
+            <input type="radio" name="examOpt">
+            <span class="exam-opt-letter">A</span>
+            <span class="exam-opt-text">加速度與作用力成正比，與質量成反比</span>
+          </label>
+          <label class="exam-option selected">
+            <input type="radio" name="examOpt" checked>
+            <span class="exam-opt-letter">B</span>
+            <span class="exam-opt-text">加速度與作用力成反比，與質量成正比</span>
+          </label>
+          <label class="exam-option">
+            <input type="radio" name="examOpt">
+            <span class="exam-opt-letter">C</span>
+            <span class="exam-opt-text">加速度與質量無關，僅與作用力有關</span>
+          </label>
+          <label class="exam-option">
+            <input type="radio" name="examOpt">
+            <span class="exam-opt-letter">D</span>
+            <span class="exam-opt-text">此定律僅適用於靜止物體</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="exam-nav-buttons">
+        <button class="ghost"><i class="ti ti-arrow-left"></i>上一題</button>
+        <button class="ghost" style="margin-left:auto;">下一題<i class="ti ti-arrow-right"></i></button>
+        <button class="primary" style="background:var(--red-600);"><i class="ti ti-flag-3"></i>交卷</button>
+      </div>
+    </div>
+
+    <div class="exam-side">
+      <div class="card">
+        <div class="section-title" style="margin-top:0;">答題卡</div>
+        <div class="exam-grid">
+          <button class="exam-num done">1</button>
+          <button class="exam-num done">2</button>
+          <button class="exam-num done">3</button>
+          <button class="exam-num done">4</button>
+          <button class="exam-num done">5</button>
+          <button class="exam-num done">6</button>
+          <button class="exam-num done">7</button>
+          <button class="exam-num current">8</button>
+          <button class="exam-num">9</button>
+          <button class="exam-num">10</button>
+          <button class="exam-num">11</button>
+          <button class="exam-num">12</button>
+          <button class="exam-num">13</button>
+          <button class="exam-num">14</button>
+          <button class="exam-num">15</button>
+          <button class="exam-num">16</button>
+          <button class="exam-num">17</button>
+          <button class="exam-num">18</button>
+          <button class="exam-num">19</button>
+          <button class="exam-num">20</button>
+        </div>
+        <div class="exam-legend">
+          <div><span class="dot done"></span>已作答（7）</div>
+          <div><span class="dot current"></span>目前題目</div>
+          <div><span class="dot todo"></span>未作答（12）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="s-weak">
+  <div class="page-head"><div><h1>弱點分析</h1><div class="page-sub">各單元答對率與學習盲點視覺化</div></div></div>
+  <div class="card">
+    <div class="weak-bar-row"><div class="unit-name">力學</div><div class="weak-bar-track"><div class="weak-bar-fill" style="width:82%;background:var(--teal-400)"></div></div><div class="weak-bar-pct">82%</div></div>
+    <div class="weak-bar-row"><div class="unit-name">電磁學</div><div class="weak-bar-track"><div class="weak-bar-fill" style="width:54%;background:#F2A623"></div></div><div class="weak-bar-pct">54%</div></div>
+    <div class="weak-bar-row"><div class="unit-name">波動與光學</div><div class="weak-bar-track"><div class="weak-bar-fill" style="width:31%;background:#E24B4A"></div></div><div class="weak-bar-pct">31%</div></div>
+  </div>
+  <div class="section-title">學習盲點警示</div>
+  <div class="grid grid-2">
+    <div class="card" style="border-color:#f0b3b3;background:var(--red-50);"><i class="ti ti-alert-triangle" style="color:var(--red-600);margin-right:8px;"></i>波動與光學 — 答對率偏低，建議加強複習</div>
+    <div class="card" style="border-color:#f0d9a8;background:var(--amber-50);"><i class="ti ti-alert-circle" style="color:var(--amber-600);margin-right:8px;"></i>電磁學 — 答對率中等，可安排練習</div>
+  </div>
+</div>
+
+<div class="panel" id="s-wrong">
+  <div class="page-head"><div><h1>錯題本</h1><div class="page-sub">自動收錄答錯的題目，可重新練習</div></div>
+    <button class="primary"><i class="ti ti-repeat"></i>重新練習全部</button>
+  </div>
+  <div class="card" style="padding:0;overflow:auto;">
+    <table>
+      <thead><tr><th>題目</th><th>單元</th><th>答錯次數</th><th>下次複習</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td>波的干涉現象發生的條件為何？</td><td>波動光學</td><td>2</td><td>明天</td><td class="row-actions"><i class="ti ti-player-play"></i></td></tr>
+        <tr><td>電場強度的計算公式為何？</td><td>電磁學</td><td>1</td><td>第 3 天</td><td class="row-actions"><i class="ti ti-player-play"></i></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel" id="s-remind">
+  <div class="page-head"><div><h1>複習提醒</h1><div class="page-sub">依艾賓浩斯遺忘曲線主動推播錯題複習</div></div></div>
+  <div class="card">
+    <div class="toggle-row" style="border-top:none;"><span>Email 複習提醒</span><div class="switch on"></div></div>
+    <div class="toggle-row"><span>答錯後第 1 天推播</span><div class="switch on"></div></div>
+    <div class="toggle-row"><span>答錯後第 3 天推播</span><div class="switch on"></div></div>
+    <div class="toggle-row"><span>答錯後第 7 天推播</span><div class="switch on"></div></div>
+  </div>
+</div>
+
+<div class="panel" id="s-analysis">
+  <div class="page-head"><div><h1>學習成效分析</h1><div class="page-sub">個人學習狀況與趨勢</div></div></div>
+  <div class="grid grid-3">
+    <div class="card metric-card"><div class="label">整體答對率</div><div class="value">73%</div></div>
+    <div class="card metric-card"><div class="label">累計練習題數</div><div class="value">462</div></div>
+    <div class="card metric-card"><div class="label">已掌握單元數</div><div class="value">6 / 9</div></div>
+  </div>
+</div>
+
+<div class="panel" id="s-bankinfo">
+  <div class="page-head"><div><h1>題庫資訊</h1><div class="page-sub">目前選取範圍的題庫概況</div></div></div>
+  <div class="grid grid-4">
+    <div class="card metric-card"><div class="label">最後更新時間</div><div class="value" style="font-size:16px;">2026-08-24</div></div>
+    <div class="card metric-card"><div class="label">本科目總題數</div><div class="value">348</div></div>
+    <div class="card metric-card"><div class="label">目前選取題目數</div><div class="value">120</div></div>
+    <div class="card metric-card"><div class="label">本範圍已練習題數</div><div class="value">76</div></div>
+  </div>
+</div>
+
+<div class="panel" id="s-record">
+  <div class="page-head"><div><h1>自我評量紀錄</h1><div class="page-sub">查看或清除歷次測驗成績</div></div>
+    <button class="ghost"><i class="ti ti-trash"></i>清除紀錄</button>
+  </div>
+  <div class="card" style="padding:0;overflow:auto;">
+    <table>
+      <thead><tr><th>測驗名稱</th><th>日期</th><th>題數</th><th>得分</th></tr></thead>
+      <tbody>
+        <tr><td>單元練習：力學</td><td>2026-08-23</td><td>20</td><td>85</td></tr>
+        <tr><td>期中模擬考 A 卷</td><td>2026-08-20</td><td>30</td><td>72</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel" id="s-announce">
+  <div class="page-head"><div><h1>課程公告</h1></div></div>
+  <div class="card">
+    <div class="announce-item"><div class="a-title">期中考範圍公告：第 1～5 章</div><div class="a-meta">2026-08-20 發布</div></div>
+    <div class="announce-item"><div class="a-title">本週三停課一次，測驗延期</div><div class="a-meta">2026-08-18 發布</div></div>
+  </div>
+</div>
+
+<!-- ========== 管理者 ========== -->
+<div class="panel" id="m-dash">
+  <div class="page-head"><div><h1>儀表板</h1><div class="page-sub">系統整體使用狀況</div></div></div>
+  <div class="grid grid-4">
+    <div class="card metric-card"><div class="label">總使用者數</div><div class="value">1,042</div></div>
+    <div class="card metric-card"><div class="label">今日匯入次數</div><div class="value">57</div></div>
+    <div class="card metric-card"><div class="label">AI 用量（本月）</div><div class="value">68%</div></div>
+    <div class="card metric-card"><div class="label">儲存空間使用率</div><div class="value">41%</div></div>
+  </div>
+</div>
+
+<div class="panel" id="m-account">
+  <div class="page-head"><div><h1>帳號管理</h1><div class="page-sub">新增、停用、編輯、查詢使用者帳號</div></div>
+    <button class="primary"><i class="ti ti-user-plus"></i>新增帳號</button>
+  </div>
+  <div class="filter-bar"><input type="text" placeholder="搜尋姓名或帳號"></div>
+  <div class="card" style="padding:0;overflow:auto;">
+    <table>
+      <thead><tr><th>姓名</th><th>角色</th><th>狀態</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td>王老師</td><td>老師</td><td><span class="tag ai">啟用中</span></td><td class="row-actions"><i class="ti ti-edit"></i><i class="ti ti-ban"></i></td></tr>
+        <tr><td>李小老師</td><td>小老師</td><td><span class="tag ai">啟用中</span></td><td class="row-actions"><i class="ti ti-edit"></i><i class="ti ti-ban"></i></td></tr>
+        <tr><td>陳同學</td><td>學生</td><td><span class="tag manual">停用</span></td><td class="row-actions"><i class="ti ti-edit"></i><i class="ti ti-rotate"></i></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel" id="m-perm">
+  <div class="page-head"><div><h1>權限設定</h1><div class="page-sub">調整老師與小老師的功能權限</div></div></div>
+  <div class="card">
+    <div style="font-size:13.5px;font-weight:500;margin-bottom:6px;">李小老師（小老師）</div>
+    <div class="toggle-row" style="border-top:none;"><span>題庫匯入</span><div class="switch on"></div></div>
+    <div class="toggle-row"><span>題庫管理</span><div class="switch on"></div></div>
+    <div class="toggle-row"><span>跨文件綜合統整測驗</span><div class="switch"></div></div>
+  </div>
+</div>
+
+<div class="panel" id="m-announce">
+  <div class="page-head"><div><h1>系統公告</h1></div>
+    <button class="primary"><i class="ti ti-plus"></i>發布公告</button>
+  </div>
+  <div class="card">
+    <div class="announce-item"><div class="a-title">系統將於本週六凌晨進行例行維護</div><div class="a-meta">2026-08-22 發布</div></div>
+  </div>
+</div>
+
+<div class="panel" id="m-usage">
+  <div class="page-head"><div><h1>系統用量</h1><div class="page-sub">匯入次數、AI 用量、儲存空間監控</div></div></div>
+  <div class="grid grid-3">
+    <div class="card metric-card"><div class="label">本月匯入總次數</div><div class="value">1,860</div></div>
+    <div class="card metric-card"><div class="label">AI 出題呼叫次數</div><div class="value">4,320</div></div>
+    <div class="card metric-card"><div class="label">儲存空間</div><div class="value">412 GB / 1 TB</div></div>
+  </div>
+</div>
+
+<div class="panel" id="m-log">
+  <div class="page-head"><div><h1>錯誤紀錄</h1><div class="page-sub">系統異常回報與排除</div></div></div>
+  <div class="card" style="padding:0;overflow:auto;">
+    <table>
+      <thead><tr><th>時間</th><th>類型</th><th>說明</th><th>狀態</th></tr></thead>
+      <tbody>
+        <tr><td>2026-08-24 09:12</td><td>匯入失敗</td><td>PDF 檔案格式無法解析</td><td><span class="tag high">未處理</span></td></tr>
+        <tr><td>2026-08-23 15:40</td><td>AI 逾時</td><td>統整題生成逾時</td><td><span class="tag low">已處理</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel" id="m-course">
+  <div class="page-head"><div><h1>課程資料管理</h1></div>
+    <button class="primary"><i class="ti ti-plus"></i>新增課程</button>
+  </div>
+  <div class="card" style="padding:0;overflow:auto;">
+    <table>
+      <thead><tr><th>課程名稱</th><th>授課老師</th><th>學生人數</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td>高三物理（甲班）</td><td>王老師</td><td>34</td><td class="row-actions"><i class="ti ti-edit"></i><i class="ti ti-trash"></i></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+`;
+
+/* exam entry point */
+document.getElementById('startExamBtn').addEventListener('click', ()=> showPanel('s-taking'));
+
+document.querySelectorAll('.exam-option').forEach(opt=>{
+  opt.addEventListener('click', ()=>{
+    opt.closest('.exam-options').querySelectorAll('.exam-option').forEach(o=>o.classList.remove('selected'));
+    opt.classList.add('selected');
+  });
+});
+
+/* init */
+switchRole('teacher');
+</script>
+</body>
+</html>
