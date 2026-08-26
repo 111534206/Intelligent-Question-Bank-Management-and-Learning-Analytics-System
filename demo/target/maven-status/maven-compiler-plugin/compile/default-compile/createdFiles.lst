@@ -1,0 +1,5 @@
+com\example\demo\DemoApplication.class
+com\example\demo\controller\AuthController.class
+com\example\demo\dto\LoginRequest.class
+com\example\demo\model\User.class
+com\example\demo\repository\UserRepository.class
