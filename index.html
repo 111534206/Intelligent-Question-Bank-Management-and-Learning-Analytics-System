@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="智慧題庫管理與學習分析系統 — 教育大市集，支援 PDF/Excel 題庫匯入、多維篩選管理與跨文件統整測驗生成。">
+<title>智慧題庫管理與學習分析系統</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ========== Login Screen ========== -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo"><i class="ti ti-books"></i><span>教育大市集</span></div>
+    <div class="login-sub">智慧題庫管理與學習分析系統</div>
+    <div class="login-role-select" id="loginRoleSelect">
+      <button class="active" data-role="teacher">老師</button>
+      <button data-role="assistant">小老師</button>
+      <button data-role="student">學生</button>
+      <button data-role="admin">管理者</button>
+    </div>
+    <div class="login-field"><label>帳號</label><input type="text" id="loginUser" placeholder="請輸入帳號" value="teacher01"></div>
+    <div class="login-field"><label>密碼</label><input type="password" id="loginPass" placeholder="請輸入密碼" value="••••••••"></div>
+    <button class="primary login-btn" id="loginSubmit"><i class="ti ti-login-2"></i>登入</button>
+    <div class="login-foot">忘記密碼？請聯絡系統管理員</div>
+  </div>
+</div>
+
+<!-- ========== Main App ========== -->
+<div class="app" id="mainApp" style="display:none;">
+  <header class="topbar">
+    <div class="brand"><i class="ti ti-books"></i>教育大市集｜智慧題庫管理與學習分析系統</div>
+    <div class="role-switcher" id="roleSwitcher">
+      <button class="role-btn active" data-role="teacher">老師</button>
+      <button class="role-btn" data-role="assistant">小老師</button>
+      <button class="role-btn" data-role="student">學生</button>
+      <button class="role-btn" data-role="admin">管理者</button>
+    </div>
+    <div class="topbar-right">
+      <div class="icon-btn"><i class="ti ti-bell"></i><span class="dot"></span></div>
+      <div class="user-chip" id="userChip">
+        <div class="avatar" id="userAvatar">王</div>
+        <span id="userName">王老師</span>
+        <i class="ti ti-chevron-down" style="font-size:14px;opacity:.6;"></i>
+      </div>
+    </div>
+  </header>
+  <div class="body-wrap">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="content" id="content">
+
+<!-- ===== 個人資料 ===== -->
+<div class="panel" id="profile-panel">
+  <div class="page-head"><div><h1>個人資料</h1><div class="page-sub">管理您的基本資料與帳號設定</div></div></div>
+  <div class="card" style="max-width:520px;">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+      <div class="avatar" id="profileAvatar" style="width:56px;height:56px;font-size:20px;">王</div>
+      <div><div style="font-size:16px;font-weight:500;" id="profileName">王老師</div><div style="font-size:12.5px;color:var(--ink-mute);" id="profileRole">老師</div></div>
+    </div>
+    <div class="form-group"><label>姓名</label><input type="text" value="王小明"></div>
+    <div class="form-group"><label>Email</label><input type="text" value="teacher.wang@example.edu.tw"></div>
+    <div class="form-group"><label>聯絡電話</label><input type="text" value="0912-345-678"></div>
+    <div class="form-group"><label>所屬科系</label><input type="text" value="自然科學科"></div>
+    <button class="primary" style="margin-top:6px;" onclick="toast('個人資料已儲存','success')"><i class="ti ti-device-floppy"></i>儲存變更</button>
+  </div>
+</div>
+
+<!-- ===== 老師儀表板 ===== -->
+<div class="panel" id="t-dash">
+  <div class="page-head"><div><h1>儀表板</h1><div class="page-sub">班級與題庫概況總覽</div></div></div>
+  <div class="grid grid-4">
+    <div class="card metric-card"><div class="label">題庫總題數</div><div class="value" id="dash-total">0</div><div class="delta" id="dash-total-delta">資料庫即時連線</div></div>
+    <div class="card metric-card"><div class="label">班級平均答對率</div><div class="value" id="dash-accuracy">--</div><div class="delta">尚無測驗紀錄</div></div>
+    <div class="card metric-card"><div class="label">待確認 AI 匯入題目</div><div class="value" id="dash-pending">0</div><div class="delta" id="dash-pending-delta" style="color:var(--amber-600)">需人工確認</div></div>
+    <div class="card metric-card"><div class="label">小老師人數</div><div class="value" id="dash-assistants">0</div><div class="delta">已授權管理權限</div></div>
+  </div>
+  <div class="section-title">題庫單元分佈總覽</div>
+  <div class="card" id="dashUnitDistribution">
+    <div style="text-align:center;padding:24px;color:var(--ink-mute);font-size:13px;">
+      <i class="ti ti-database-off" style="font-size:24px;display:block;margin-bottom:6px;color:var(--ink-mute);"></i>
+      資料庫目前尚無題目資料。請至「題庫匯入」上傳試卷或「題庫管理」新增題目。
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== 題庫匯入（雙軌強化版：固定格式 + Google Gemini PPT AI 擷取） ===== -->
+<div class="panel" id="t-import">
+  <div class="page-head"><div><h1>題庫匯入</h1><div class="page-sub">支援 Excel/PDF 固定格式範本批次匯入，以及 Google Gemini AI 智慧擷取 PPT 簡報試題與答案</div></div></div>
+
+  <div class="info-note" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;">
+    <div>
+      <i class="ti ti-brand-google" style="color:#4285F4;"></i>
+      已整合 <strong>Google Gemini API (gemini-2.5-flash)</strong>！模式一精確抓取 PDF/Excel 原題，模式二由 AI 自動創作 PPT 試題。
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;">
+      <label style="color:var(--ink-soft);font-weight:600;"><i class="ti ti-key" style="color:#4285F4;"></i> Gemini API Key：</label>
+      <input type="password" id="geminiApiKeyInputHeader" placeholder="輸入 API Key (AIzaSy...)" style="width:200px;padding:5px 10px;font-size:12px;border:1px solid var(--line);border-radius:6px;" onchange="saveGeminiApiKey(this.value)">
+      <a href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size:12px;color:#4285F4;text-decoration:none;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-external-link"></i> 免費 Key</a>
+    </div>
+  </div>
+
+  <!-- Steps Header -->
+  <div class="import-steps">
+    <div class="import-step active" id="importStepUpload" onclick="switchImportStep('upload')"><span class="step-num">1</span>選擇匯入模式與檔案</div>
+    <div class="import-step" id="importStepReview" onclick="switchImportStep('review')"><span class="step-num">2</span>待確認題目審核 <span class="badge-count" id="import-pending-badge">0</span></div>
+  </div>
+
+  <!-- Step 1: Upload & Mode Selection -->
+  <div id="importUploadSection">
+    
+    <!-- Mode Switcher Tabs -->
+    <div class="import-mode-tabs">
+      <div class="import-mode-tab active" id="tabFixedImport" onclick="switchImportMode('fixed')">
+        <i class="ti ti-file-text"></i> 模式一：PDF / Excel 試卷 (API 原題精確抓取)
+      </div>
+      <div class="import-mode-tab" id="tabPptAiImport" onclick="switchImportMode('ppt-ai')">
+        <i class="ti ti-slideshow"></i> 模式二：PPT 簡報檔 (Gemini AI 創作生成題目) <span class="badge-ai">Gemini AI</span>
+      </div>
+    </div>
+
+    <!-- Mode 1: Fixed Format Import -->
+    <div id="fixedImportArea">
+      <div class="card" style="margin-bottom:14px;padding:16px;">
+        <div style="font-size:13.5px;font-weight:500;color:var(--ink);margin-bottom:6px;"><i class="ti ti-info-circle" style="color:var(--teal-600);"></i> 說明：請依據標準欄位下載並填寫範本檔，系統將自動解析題目、選項 A/B/C/D 與解答。</div>
+        <div class="import-template-download">
+          <span style="font-size:12.5px;color:var(--ink-mute);">範本下載：</span>
+          <button class="import-template-btn" onclick="downloadExcelTemplate()"><i class="ti ti-file-type-xls" style="color:#166534;"></i> 下載標準 Excel 題庫範本 (.xlsx)</button>
+          <button class="import-template-btn" onclick="downloadPdfTemplate()"><i class="ti ti-file-type-pdf" style="color:#991b1b;"></i> 下載標準 PDF 試卷範本 (.pdf)</button>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="importDropZoneFixed" onclick="document.getElementById('importFileInputFixed').click();">
+        <i class="ti ti-cloud-upload uz-icon"></i>
+        <div class="uz-title">拖曳 Excel 或 PDF 檔案到此處，或點擊選擇檔案</div>
+        <div class="uz-hint">支援格式：.xlsx, .xls, .pdf（符合標準排版格式）</div>
+        <div class="ft-badges">
+          <span class="ft-badge xls"><i class="ti ti-file-type-xls"></i> Excel 表格</span>
+          <span class="ft-badge pdf"><i class="ti ti-file-type-pdf"></i> PDF 試卷</span>
+        </div>
+        <input type="file" id="importFileInputFixed" multiple accept=".xlsx,.xls,.pdf" style="display:none">
+      </div>
+    </div>
+
+    <!-- Mode 2: PPT AI Question Extraction (Google Gemini) -->
+    <div id="pptAiImportArea" style="display:none;">
+      <div class="card" style="margin-bottom:14px;padding:16px;background:linear-gradient(135deg, rgba(66,133,244,0.04), rgba(155,81,224,0.04));border-color:rgba(66,133,244,0.2);">
+        <div style="font-size:13.5px;font-weight:600;color:#202124;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+          <i class="ti ti-sparkles" style="color:#4285F4;font-size:16px;"></i> Google Gemini 2.5 Flash 簡報 AI 題目與答案擷取引擎
+        </div>
+        <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin:0 0 10px 0;">
+          上傳教學 PPT 簡報檔，Gemini AI 會讀取每張投影片知識點與備忘錄，自動辨識投影片中的題目與標準解答，並可補全生成標準四選一測驗題。
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+          <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;">
+            <label style="color:var(--ink-soft);">歸屬科目：</label>
+            <select id="pptImportSubject" style="padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);">
+              <option value="物理">物理</option>
+              <option value="化學">化學</option>
+              <option value="生物">生物</option>
+              <option value="數學">數學</option>
+              <option value="一般">一般綜合</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;">
+            <label style="color:var(--ink-soft);">預設難度：</label>
+            <select id="pptImportDifficulty" style="padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);">
+              <option value="中">中等 (推薦)</option>
+              <option value="易">基礎 (簡單)</option>
+              <option value="難">進階 (困難)</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;">
+            <label style="color:var(--ink-soft);font-weight:600;"><i class="ti ti-list-numbers" style="color:#4285F4;"></i> 指定生成題數：</label>
+            <input type="number" id="pptImportQuestionCount" value="5" min="1" max="30" style="width:70px;padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--line);background:var(--card-bg);color:var(--ink);" placeholder="5"> <span style="color:var(--ink-soft);">題</span>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);display:flex;align-items:center;gap:8px;font-size:12.5px;flex-wrap:wrap;">
+          <label style="color:var(--ink-soft);font-weight:500;"><i class="ti ti-key" style="color:#4285F4;"></i> Gemini API Key：</label>
+          <input type="password" id="geminiApiKeyInput" placeholder="請貼上您的 Google Gemini API Key (AIzaSy...)" style="flex:1;min-width:220px;max-width:360px;padding:6px 10px;font-size:12px;border:1px solid var(--line);border-radius:6px;" onchange="saveGeminiApiKey(this.value)">
+          <button class="ghost" style="padding:4px 10px;font-size:12px;" onclick="toggleApiKeyVisibility()"><i class="ti ti-eye" id="eyeIcon"></i> 顯示</button>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size:12px;color:#4285F4;text-decoration:none;display:inline-flex;align-items:center;gap:3px;"><i class="ti ti-external-link"></i> 免費申請 Key</a>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="importDropZonePpt" onclick="document.getElementById('importFileInputPpt').click();" style="border-color:rgba(66,133,244,0.3);">
+        <i class="ti ti-slideshow uz-icon" style="color:#4285F4;"></i>
+        <div class="uz-title">拖曳 PPT 簡報檔到此處，交由 Google Gemini AI 擷取題目</div>
+        <div class="uz-hint">支援格式：.pptx, .ppt 簡報檔</div>
+        <div class="ft-badges">
+          <span class="ft-badge doc" style="background:#e8f0fe;color:#1967d2;"><i class="ti ti-file-type-ppt"></i> PowerPoint (.pptx / .ppt)</span>
+        </div>
+        <input type="file" id="importFileInputPpt" multiple accept=".pptx,.ppt" style="display:none">
+      </div>
+    </div>
+
+    <!-- Upload File List -->
+    <div class="file-list" id="importFileList" style="display:none;margin-top:14px;"></div>
+
+    <!-- AI Parsing Loading / Step Indicator -->
+    <div id="importProgressArea" style="display:none;margin-top:16px;">
+      <div class="section-title"><i class="ti ti-brand-google" style="color:#4285F4;"></i> Gemini AI 解析進度</div>
+      <div id="importProgressItems"></div>
+    </div>
+
+    <!-- Action Bar -->
+    <div id="importActionBar" style="display:none;margin-top:16px;gap:10px;align-items:center;">
+      <button class="primary" id="startImportBtn" onclick="processSelectedImport()"><i class="ti ti-bolt"></i>開始解析與擷取題目</button>
+      <button class="ghost" onclick="selectedFiles=[];renderFileList();"><i class="ti ti-x"></i>清除全部檔案</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Review & Edit Pending Questions -->
+  <div id="importReviewSection" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div class="section-title" style="margin:0;">待確認題目清單（AI 智慧擷取 / 固定格式）</div>
+        <span id="pendingCountLabel" style="font-size:12.5px;color:var(--ink-mute);">共 3 筆待確認題目</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="ghost" onclick="clearAllPendingRecords()"><i class="ti ti-trash"></i>清空待確認清單</button>
+        <button class="ghost" onclick="switchImportStep('upload')"><i class="ti ti-plus"></i>繼續匯入更多</button>
+        <button class="primary" onclick="confirmAllPendingToBank()"><i class="ti ti-check-all"></i>一鍵批次確認轉入正式題庫</button>
+      </div>
+    </div>
+
+    <div class="card" style="padding:0;overflow:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:38%">題目內容與選項</th>
+            <th>科目/單元</th>
+            <th>來源檔案</th>
+            <th>信心度</th>
+            <th>狀態</th>
+            <th style="width:140px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="pendingTbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Pending Review Table Pagination Bar -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:12px;background:var(--surface);padding:10px 16px;border-radius:8px;border:1px solid var(--line);" id="pendingPaginationBar">
+      <div style="font-size:12.5px;color:var(--ink-soft);display:flex;align-items:center;gap:8px;">
+        <span>每頁顯示：</span>
+        <select id="pendingPageSizeSelect" style="padding:4px 8px;font-size:12px;border:1px solid var(--line);border-radius:6px;background:var(--card-bg);color:var(--ink);" onchange="changePendingPageSize(this.value)">
+          <option value="10" selected>10 條 / 頁</option>
+          <option value="20">20 條 / 頁</option>
+          <option value="50">50 條 / 頁</option>
+          <option value="9999">顯示全部</option>
+        </select>
+        <span id="pendingPageRangeText" style="margin-left:8px;font-weight:500;color:var(--ink);">顯示第 1 - 10 筆，共 50 筆</span>
+      </div>
+      <div style="display:flex;gap:4px;align-items:center;" id="pendingPageNav">
+        <!-- Pagination controls -->
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== 題庫管理（強化版） ===== -->
+<div class="panel" id="t-bank">
+  <div class="page-head">
+    <div><h1>題庫管理</h1><div class="page-sub">瀏覽、編輯、分類與搜尋題庫；支援多維度篩選</div></div>
+    <button class="primary" id="bankAddBtn"><i class="ti ti-plus"></i>新增題目</button>
+  </div>
+
+  <div class="info-note">
+    <i class="ti ti-api"></i>
+    目前為前端模擬模式。啟動 Spring Boot 後，API 端點 <code>GET /api/questions</code> 支援 dept / subject / unit / difficulty / keyword / page 查詢參數。
+  </div>
+
+  <div class="filter-bar">
+    <select id="bankDept"><option value="">全部科系</option></select>
+    <select id="bankSubject"><option value="">全部科目</option></select>
+    <select id="bankUnit"><option value="">全部單元</option></select>
+    <select id="bankDifficulty"><option value="">全部難度</option></select>
+    <input type="text" id="bankSearch" placeholder="🔍 搜尋題目關鍵字" style="flex:1;min-width:200px;">
+    <button class="ghost" onclick="bankFilters={dept:'',subject:'',unit:'',difficulty:'',keyword:''};document.getElementById('bankSearch').value='';['bankDept','bankSubject','bankUnit','bankDifficulty'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});bankPage=1;renderBankPanel();"><i class="ti ti-x"></i>清除篩選</button>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+    <span id="bankTotalCount" style="font-size:13px;color:var(--ink-mute);"></span>
+  </div>
+
+  <div class="card" style="padding:0;overflow:auto;">
+    <table>
+      <thead><tr><th style="width:40%">題目</th><th>科目</th><th>單元</th><th>難度</th><th>來源</th><th>操作</th></tr></thead>
+      <tbody id="bankTbody"></tbody>
+    </table>
+  </div>
+  <div class="pagination" id="bankPagination"></div>
+</div>
+
+<!-- ===== 學習資料夾（強化版） ===== -->
+<div class="panel" id="t-folder">
+  <div id="folderListView">
+    <div class="page-head">
+      <div><h1>學習資料夾</h1><div class="page-sub">放入多份教材（PPT、PDF、DOC 等），AI 交叉比對生成跨章節統整題</div></div>
+      <button class="primary" id="createFolderBtn"><i class="ti ti-folder-plus"></i>建立資料夾</button>
+    </div>
+    <div class="info-note">
+      <i class="ti ti-api"></i>
+      API Stub：<code>POST /api/folders/{id}/generate</code> — 觸發 AI 統整題生成。連接 LLM 服務後可替換 stub 回應。
+    </div>
+    <div class="fk-list" id="folderList"></div>
+  </div>
+
+  <div id="folderDetailView" style="display:none;">
+    <div class="breadcrumb" id="folderDetailBreadcrumb"></div>
+    <div class="page-head">
+      <div><h1 id="folderDetailName">資料夾名稱</h1><div class="page-sub">上傳教材後，點擊「生成統整題」讓 AI 交叉比對所有章節</div></div>
+    </div>
+
+    <div class="grid grid-2" style="align-items:start;">
+      <!-- Left: Materials -->
+      <div>
+        <div class="section-title" style="margin-top:0;">已上傳教材</div>
+        <div class="material-list" id="folderMaterialList"></div>
+        <div class="folder-upload-zone" id="folderUploadZone">
+          <i class="ti ti-upload" style="font-size:22px;display:block;margin-bottom:6px;color:var(--teal-400);"></i>
+          拖曳教材到此，或點擊上傳<br>
+          <span style="font-size:11px;margin-top:4px;display:block;">支援 PDF、PPT、Word、Excel、圖片</span>
+          <input type="file" id="folderFileInput" multiple accept=".pdf,.pptx,.ppt,.docx,.doc,.xlsx,.xls,.png,.jpg" style="display:none">
+        </div>
+      </div>
+
+      <!-- Right: Generate -->
+      <div>
+        <div class="section-title" style="margin-top:0;">AI 跨章節統整題生成</div>
+        <div class="card">
+          <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px;line-height:1.7;">
+            系統將對所有上傳教材進行交叉比對，自動生成需要綜合多章節概念的進階統整題。<br>
+            <strong>建議：至少上傳 2 份以上教材以獲得最佳效果。</strong>
+          </p>
+          <button class="primary" id="generateBtn" onclick="generateFolderQuestions()" style="width:100%;justify-content:center;">
+            <i class="ti ti-sparkles"></i>生成跨章節統整題
+          </button>
+          <div id="genLoading" style="display:none;" class="ai-loading">
+            <div class="ai-spinner"></div>
+            <div class="ai-loading-text">AI 正在分析教材內容…</div>
+            <div class="ai-loading-sub">約需 3–5 秒</div>
+            <div class="ai-steps">
+              <div class="ai-step-item" id="aiStep1"><i class="ti ti-circle-dashed"></i><span>分析教材內容結構…</span></div>
+              <div class="ai-step-item" id="aiStep2"><i class="ti ti-circle-dashed"></i><span>提取各章節核心概念…</span></div>
+              <div class="ai-step-item" id="aiStep3"><i class="ti ti-circle-dashed"></i><span>交叉比對跨章節知識點…</span></div>
+              <div class="ai-step-item" id="aiStep4"><i class="ti ti-circle-dashed"></i><span>生成統整題目…</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Generated results -->
+    <div id="genResult" style="margin-top:20px;"></div>
+  </div>
+</div>
+
+<!-- ===== 固定試卷 ===== -->
+<div class="panel" id="t-paper">
+  <div class="page-head"><div><h1>固定試卷</h1><div class="page-sub">設定測驗條件，建立可重複使用的固定試卷</div></div>
+    <button class="primary" onclick="toast('請先由題庫勾選題目建立試卷','info')"><i class="ti ti-plus"></i>建立試卷</button></div>
+  <div class="card" style="padding:0;overflow:auto;">
+    <table><thead><tr><th>試卷名稱</th><th>科目</th><th>題數</th><th>作答時間</th><th>使用次數</th></tr></thead>
+    <tbody>
+      <tr><td colspan="5" style="text-align:center;color:var(--ink-mute);padding:32px;"><i class="ti ti-file-off" style="font-size:24px;display:block;margin-bottom:6px;"></i>目前尚無建立的固定試卷。</td></tr>
+    </tbody></table>
+  </div>
+</div>
+
+<!-- ===== 成效分析 ===== -->
+<div class="panel" id="t-analysis">
+  <div class="page-head"><div><h1>成效分析</h1><div class="page-sub">班級與個人答題狀況統計</div></div></div>
+  <div class="grid grid-3">
+    <div class="card metric-card"><div class="label">班級平均分</div><div class="value">--</div><div class="delta">尚無測驗紀錄</div></div>
+    <div class="card metric-card"><div class="label">最低答對率單元</div><div class="value">--</div><div class="delta">尚無測驗紀錄</div></div>
+    <div class="card metric-card"><div class="label">本月測驗次數</div><div class="value">0</div><div class="delta">尚無測驗紀錄</div></div>
+  </div>
+  <div class="section-title">單題答對率統計</div>
+  <div class="card" style="padding:0;overflow:auto;"><table>
+    <thead><tr><th>題目</th><th>單元</th><th>作答人數</th><th>答對率</th></tr></thead>
+    <tbody>
+      <tr><td colspan="4" style="text-align:center;color:var(--ink-mute);padding:32px;"><i class="ti ti-chart-bar-off" style="font-size:24px;display:block;margin-bottom:6px;"></i>尚無作答統計數據，當學生完成測驗後將在此呈現成效分析。</td></tr>
+    </tbody>
+  </table></div>
+</div>
+
+<!-- ===== 小老師權限 ===== -->
+<div class="panel" id="t-perm">
+  <div class="page-head">
+    <div>
+      <h1>小老師權限設定</h1>
+      <div class="page-sub">以表格式管理並授權各課程小老師可使用的功能與操作範圍</div>
+    </div>
+  </div>
+
+  <div id="teacherPermPanelContainer">
+    <!-- 由 renderTeacherPermPanel() 動態渲染表格式權限管理介面 -->
+  </div>
+</div>
+
+<!-- ===== 課程公告 ===== -->
+<div class="panel" id="t-announce">
+  <div class="page-head"><div><h1>課程公告</h1><div class="page-sub">發布公告給班級學生與小老師</div></div>
+    <button class="primary" onclick="toast('可發布新公告','info')"><i class="ti ti-plus"></i>發布公告</button></div>
+  <div class="card">
+    <div style="text-align:center;color:var(--ink-mute);padding:24px;font-size:13px;">
+      <i class="ti ti-speakerphone" style="font-size:24px;display:block;margin-bottom:6px;"></i>目前尚無公告發布紀錄
+    </div>
+  </div>
+</div>
+
+<!-- ===== 課程管理 ===== -->
+<div class="panel" id="t-course">
+  <div class="page-head">
+    <div>
+      <h1>課程管理</h1>
+      <div class="page-sub">管理開課基本資訊、修課學生名單與各班級配置</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="primary" onclick="openCreateCoursePage()"><i class="ti ti-plus"></i>新增課程</button>
+    </div>
+  </div>
+
+  <div class="filter-bar" style="background:#fff;padding:12px 16px;border:1px solid var(--line);border-radius:10px;margin-bottom:16px;display:flex;gap:12px;align-items:center;">
+    <div style="display:flex;align-items:center;gap:8px;flex:1;">
+      <i class="ti ti-search" style="color:var(--ink-mute);"></i>
+      <input type="text" id="courseSearchInput" placeholder="搜尋課程名稱、年級、班級或授課教師..." oninput="filterCourseList()" style="border:none;background:transparent;padding:4px 0;width:100%;outline:none;">
+    </div>
+    <div style="display:flex;gap:8px;">
+      <select id="courseFilterClass" onchange="filterCourseList()" style="font-size:12.5px;padding:6px 10px;">
+        <option value="">全部班級</option>
+        <option value="忠班">忠班</option>
+        <option value="孝班">孝班</option>
+        <option value="仁班">仁班</option>
+        <option value="愛班">愛班</option>
+        <option value="信班">信班</option>
+        <option value="義班">義班</option>
+        <option value="和班">和班</option>
+        <option value="平班">平班</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0;overflow:auto;">
+    <table id="courseTable">
+      <thead>
+        <tr>
+          <th style="width:55px;text-align:center;">序號</th>
+          <th>課程名稱</th>
+          <th>開課年級 / 班級</th>
+          <th>授課教師</th>
+          <th>學生人數與小老師</th>
+          <th style="text-align:center;">狀態</th>
+          <th style="text-align:right;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="courseTableBody">
+        <tr>
+          <td colspan="7" style="text-align:center;color:var(--ink-mute);padding:36px;">
+            <i class="ti ti-school-off" style="font-size:28px;display:block;margin-bottom:8px;color:var(--ink-mute);"></i>
+            目前尚無建立的課程資料，請點擊上方「新增課程」建立第一門課程
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== 新增/編輯課程專屬頁面 ===== -->
+<div class="panel" id="t-course-create">
+  <div class="breadcrumb" style="margin-bottom:12px;">
+    <a onclick="closeCreateCoursePage()" style="display:inline-flex;align-items:center;gap:4px;"><i class="ti ti-chevron-left"></i> 返回課程列表</a>
+    <span>/</span>
+    <span style="color:var(--ink);font-weight:500;" id="courseFormBreadcrumb">新增課程</span>
+  </div>
+
+  <div class="page-head" style="margin-bottom:20px;">
+    <div>
+      <h1 style="display:flex;align-items:center;gap:8px;">
+        <i class="ti ti-school" style="color:var(--teal-600);"></i> <span id="courseFormTitle">新增課程</span>
+      </h1>
+      <div class="page-sub" id="courseFormSub">請填寫課程基本資訊，並透過 Excel / CSV 批次匯入修課學生名單</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="ghost" onclick="closeCreateCoursePage()"><i class="ti ti-arrow-back-up"></i>返回</button>
+      <button class="primary" onclick="saveCourseForm()"><i class="ti ti-device-floppy"></i><span id="courseFormTopBtnText">儲存並建立課程</span></button>
+    </div>
+  </div>
+
+  <form id="createCourseForm" onsubmit="event.preventDefault(); saveCourseForm();">
+    <!-- 課程基本資訊區塊 -->
+    <div class="card" style="margin-bottom:20px;border-top:3px solid var(--teal-600);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--line);">
+        <div style="font-size:15px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px;">
+          <i class="ti ti-info-circle" style="color:var(--teal-600);font-size:18px;"></i> 課程基本資訊
+        </div>
+        <span style="font-size:12px;color:var(--ink-mute);"><span style="color:var(--red-600);">*</span> 為必填欄位</span>
+      </div>
+
+      <div class="grid grid-2" style="margin-bottom:14px;">
+        <div class="form-group">
+          <label for="courseName"><span style="color:var(--red-600);">*</span> 課程名稱（文字方塊）</label>
+          <input type="text" id="courseName" placeholder="例如：高二基礎物理、進階程式設計" required>
+        </div>
+        <div class="form-group">
+          <label for="courseGrade"><span style="color:var(--red-600);">*</span> 年級（文字方塊）</label>
+          <input type="text" id="courseGrade" placeholder="例如：高一、高二、一年級" value="高二" required>
+        </div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="form-group">
+          <label for="courseClass"><span style="color:var(--red-600);">*</span> 開課班級（下拉選單）</label>
+          <select id="courseClass" required>
+            <option value="忠班" selected>忠班</option>
+            <option value="孝班">孝班</option>
+            <option value="仁班">仁班</option>
+            <option value="愛班">愛班</option>
+            <option value="信班">信班</option>
+            <option value="義班">義班</option>
+            <option value="和班">和班</option>
+            <option value="平班">平班</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="courseTeacher">
+            授課教師
+            <span class="tag" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-size:11px;padding:1px 6px;border-radius:10px;margin-left:6px;font-weight:normal;">
+              <i class="ti ti-lock"></i> 系統綁定當前登入教師
+            </span>
+          </label>
+          <input type="text" id="courseTeacher" placeholder="登入之教師" value="王大明" readonly style="background:var(--bg-page);cursor:not-allowed;color:var(--ink);font-weight:500;border:1px solid var(--line);">
+        </div>
+      </div>
+    </div>
+
+    <!-- 學生名單 Excel 匯入區塊 -->
+    <div class="card" style="margin-bottom:24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px;">
+            <i class="ti ti-users" style="color:var(--teal-600);font-size:18px;"></i> 學生名單（自動核對資料庫 User 帳號）
+            <span class="fk-badge" id="studentCountBadge" style="font-weight:normal;background:var(--teal-50);color:var(--teal-800);">已匯入 0 人</span>
+            <span id="studentVerifyStatBadge" style="font-size:12px;font-weight:500;display:none;"></span>
+          </div>
+          <div style="font-size:12px;color:var(--ink-mute);margin-top:2px;">
+            上傳 Excel / CSV 名單後，系統將自動比對資料庫 <code style="background:var(--bg-page);padding:2px 4px;border-radius:4px;">users</code> 表確認學生身份並加入課程
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="ghost" onclick="downloadStudentExcelTemplate()" style="font-size:12.5px;padding:6px 12px;">
+            <i class="ti ti-download" style="color:var(--teal-600);"></i> 下載學生名單 Excel 範本
+          </button>
+          <button type="button" class="ghost" onclick="promptAddStudentManual()" style="font-size:12.5px;padding:6px 12px;">
+            <i class="ti ti-user-plus"></i> 自資料庫選取 / 新增學生
+          </button>
+          <button type="button" class="ghost" id="cleanUnverifiedBtn" onclick="removeUnverifiedStudents()" style="display:none;font-size:12.5px;padding:6px 12px;color:var(--amber-700);">
+            <i class="ti ti-filter-off"></i> 移除未驗證學生
+          </button>
+          <button type="button" class="ghost" onclick="clearCourseStudents()" style="font-size:12.5px;padding:6px 12px;color:var(--red-600);">
+            <i class="ti ti-trash"></i> 清空名單
+          </button>
+        </div>
+      </div>
+
+      <!-- 上傳拖曳區 -->
+      <div class="upload-zone" id="studentDropZone" style="padding:28px 20px;border-width:2px;margin-bottom:16px;" onclick="document.getElementById('studentExcelInput').click()">
+        <i class="ti ti-file-spreadsheet uz-icon" style="font-size:36px;color:var(--teal-600);margin-bottom:8px;"></i>
+        <div class="uz-title" style="font-size:14px;">拖曳 Excel 學生名單檔案至此，或點擊選擇檔案</div>
+        <div class="uz-hint" style="font-size:12px;margin-bottom:8px;">支援格式：.xlsx, .xls, .csv（自動與資料庫 user 表比對學號 / 姓名）</div>
+        <div class="ft-badges">
+          <span class="ft-badge xls"><i class="ti ti-file-type-xls"></i> Excel (.xlsx / .xls)</span>
+          <span class="ft-badge doc"><i class="ti ti-file-type-csv"></i> CSV (.csv)</span>
+        </div>
+        <input type="file" id="studentExcelInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleStudentExcelFile(event)">
+      </div>
+
+      <!-- 匯入檔案資訊提示條 -->
+      <div id="studentFileLoadedInfo" style="display:none;background:var(--teal-50);border:1px solid var(--teal-200);border-radius:8px;padding:10px 14px;margin-bottom:14px;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--teal-900);">
+          <i class="ti ti-circle-check-filled" style="color:var(--teal-600);font-size:18px;"></i>
+          <span id="studentFileName">名單.xlsx</span>
+          <span style="font-size:11.5px;color:var(--ink-mute);" id="studentFileSize">(0 KB)</span>
+        </div>
+        <button type="button" class="ghost" style="padding:4px 8px;font-size:11.5px;" onclick="document.getElementById('studentExcelInput').click()">重新上傳</button>
+      </div>
+
+      <!-- 小老師設定摘要提示條 -->
+      <div id="taSummaryBar" style="display:none;background:linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);border:1px solid #fde68a;border-radius:8px;padding:10px 16px;margin-bottom:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="background:#f59e0b;color:#fff;width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 1px 3px rgba(245,158,11,0.4);">⭐</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#92400e;display:flex;align-items:center;gap:6px;">
+              已指定課程小老師 <span id="taCountBadge" class="tag" style="background:#fbbf24;color:#78350f;font-weight:700;padding:1px 8px;border-radius:12px;">0 位</span>
+            </div>
+            <div id="taNamesChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+              <!-- 動態渲染小老師名稱與權限標籤 -->
+            </div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#b45309;">
+          <i class="ti ti-shield-lock"></i> 點擊下方學生的「設定權限」可配置題庫/測驗/成績等助教權限
+        </div>
+      </div>
+
+      <!-- 學生名單預覽表格 -->
+      <div style="border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;">
+        <table id="studentPreviewTable" style="margin:0;">
+          <thead>
+            <tr>
+              <th style="width:45px;text-align:center;">序號</th>
+              <th>學號</th>
+              <th>姓名</th>
+              <th>座號</th>
+              <th>電子信箱</th>
+              <th style="text-align:center;">資料庫比對</th>
+              <th style="min-width:180px;text-align:center;">小老師角色與權限</th>
+              <th>備註</th>
+              <th style="width:70px;text-align:center;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="studentPreviewTbody">
+            <tr>
+              <td colspan="9" style="text-align:center;color:var(--ink-mute);padding:24px;">
+                <i class="ti ti-users-minus" style="font-size:22px;display:block;margin-bottom:4px;"></i>
+                尚未匯入任何學生名單。請由上方上傳 Excel 檔案或點擊「自資料庫選取 / 新增學生」
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 底部操作按鈕 -->
+    <div style="display:flex;justify-content:flex-end;gap:12px;padding:16px 0;">
+      <button type="button" class="ghost" onclick="closeCreateCoursePage()"><i class="ti ti-x"></i> 取消</button>
+      <button type="button" class="ghost" onclick="resetCreateCourseForm()"><i class="ti ti-refresh"></i> 重設表單</button>
+      <button type="submit" class="primary" style="padding:10px 24px;font-size:14px;">
+        <i class="ti ti-check"></i> <span id="courseFormBottomBtnText">儲存並建立課程</span>
+      </button>
+    </div>
+  </form>
+</div>
+
+
+<!-- ===== 小老師面板 ===== -->
+<div class="panel" id="a-dash">
+  <div class="page-head"><div><h1>儀表板</h1><div class="page-sub">目前被開放使用的功能</div></div></div>
+  <div class="grid grid-2">
+    <div class="card"><i class="ti ti-check" style="color:var(--teal-600);margin-right:8px;"></i>題庫匯入 — 已開放</div>
+    <div class="card"><i class="ti ti-check" style="color:var(--teal-600);margin-right:8px;"></i>題庫管理 — 已開放</div>
+    <div class="card"><i class="ti ti-lock" style="color:var(--ink-mute);margin-right:8px;"></i>跨文件綜合統整測驗 — 未開放</div>
+  </div>
+</div>
+<div class="panel" id="a-import">
+  <div class="page-head"><div><h1>題庫匯入</h1><div class="page-sub">協助老師建立題庫</div></div></div>
+  <div class="upload-zone" style="cursor:default"><i class="ti ti-cloud-upload uz-icon"></i><div class="uz-title">將檔案拖曳到此處，或點擊選擇</div><div class="ft-badges"><span class="ft-badge pdf">PDF</span><span class="ft-badge xls">Excel</span></div></div>
+</div>
+<div class="panel" id="a-bank">
+  <div class="page-head"><div><h1>題庫管理</h1><div class="page-sub">瀏覽、編輯題庫內容</div></div></div>
+  <div class="card" style="padding:0;overflow:auto;"><table><thead><tr><th>題目</th><th>科目</th><th>單元</th><th>操作</th></tr></thead>
+  <tbody><tr><td colspan="4" style="text-align:center;color:var(--ink-mute);padding:24px;">題庫目前尚無題目</td></tr></tbody></table></div>
+</div>
+
+<div class="panel" id="a-folder">
+  <div class="page-head"><div><h1>跨文件綜合統整測驗</h1><div class="page-sub">此功能需老師授權後才能使用</div></div></div>
+  <div class="perm-note"><i class="ti ti-lock"></i>目前尚未取得此功能的使用權限，請聯絡授課老師開通。</div>
+</div>
+<div class="panel" id="a-announce">
+  <div class="page-head"><div><h1>課程公告</h1></div></div>
+  <div class="card"><div class="announce-item"><div class="a-title">期中考範圍公告：第 1～5 章</div><div class="a-meta">2026-08-20 發布</div></div></div>
+</div>
+
+<!-- ===== 學生面板 ===== -->
+<div class="panel" id="s-home">
+  <div class="page-head"><div><h1>首頁</h1><div class="page-sub">今日待複習與學習概況</div></div></div>
+  <div class="grid grid-3">
+    <div class="card metric-card"><div class="label">今日待複習錯題</div><div class="value">6</div><div class="delta" style="color:var(--amber-600)">第 3 天複習提醒</div></div>
+    <div class="card metric-card"><div class="label">本週練習題數</div><div class="value">84</div></div>
+    <div class="card metric-card"><div class="label">整體答對率</div><div class="value">73%</div></div>
+  </div>
+  <div class="section-title">課程公告</div>
+  <div class="card"><div class="announce-item"><div class="a-title">期中考範圍公告：第 1～5 章</div><div class="a-meta">2026-08-20 發布</div></div></div>
+</div>
+<div class="panel" id="s-quiz">
+  <div class="page-head"><div><h1>開始測驗</h1><div class="page-sub">選擇練習範圍與作答設定</div></div></div>
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="section-title" style="margin-top:0;">選擇範圍</div>
+      <div class="filter-bar" style="margin-bottom:10px;">
+        <select><option>科系</option></select><select><option>科目</option></select><select><option>單元</option></select>
+      </div>
+      <button class="ghost" style="width:100%;justify-content:center;">或選擇固定試卷</button>
+    </div>
+    <div class="card">
+      <div class="section-title" style="margin-top:0;">作答設定</div>
+      <div class="toggle-row" style="border-top:none;padding-top:0;"><span>題目數量</span><input type="number" value="20" style="width:70px;"></div>
+      <div class="toggle-row"><span>作答時間（分鐘）</span><input type="number" value="30" style="width:70px;"></div>
+      <div class="toggle-row"><span>出題模式</span><select style="min-width:100px;"><option>隨機</option><option>專挑弱點</option><option>挑沒練過的</option></select></div>
+      <div class="toggle-row"><span>答案選項隨機排列</span><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+    </div>
+  </div>
+  <div style="margin-top:16px;"><button class="primary" id="startExamBtn"><i class="ti ti-player-play"></i>開始測驗</button></div>
+</div>
+<div class="panel" id="s-taking">
+  <div class="exam-topbar">
+    <div><div class="exam-title">物理 · 力學單元練習</div><div class="exam-sub">第 <span id="examCurrentNo">8</span> 題 / 共 20 題</div></div>
+    <div class="exam-timer"><i class="ti ti-clock"></i><span id="examTimer">24:35</span></div>
+  </div>
+  <div class="exam-body">
+    <div class="exam-main">
+      <div class="card exam-question-card">
+        <div class="exam-q-text">下列關於牛頓第二運動定律 F = ma 的敘述，何者正確？</div>
+        <div class="exam-options">
+          <label class="exam-option"><input type="radio" name="examOpt"><span class="exam-opt-letter">A</span><span class="exam-opt-text">加速度與作用力成正比，與質量成反比</span></label>
+          <label class="exam-option selected"><input type="radio" name="examOpt" checked><span class="exam-opt-letter">B</span><span class="exam-opt-text">加速度與作用力成反比，與質量成正比</span></label>
+          <label class="exam-option"><input type="radio" name="examOpt"><span class="exam-opt-letter">C</span><span class="exam-opt-text">加速度與質量無關，僅與作用力有關</span></label>
+          <label class="exam-option"><input type="radio" name="examOpt"><span class="exam-opt-letter">D</span><span class="exam-opt-text">此定律僅適用於靜止物體</span></label>
+        </div>
+      </div>
+      <div class="exam-nav-buttons">
+        <button class="ghost"><i class="ti ti-arrow-left"></i>上一題</button>
+        <button class="ghost" style="margin-left:auto;">下一題<i class="ti ti-arrow-right"></i></button>
+        <button class="primary" style="background:var(--red-600);"><i class="ti ti-flag-3"></i>交卷</button>
+      </div>
+    </div>
+    <div class="exam-side">
+      <div class="card">
+        <div class="section-title" style="margin-top:0;">答題卡</div>
+        <div class="exam-grid">
+          <button class="exam-num done">1</button><button class="exam-num done">2</button><button class="exam-num done">3</button><button class="exam-num done">4</button><button class="exam-num done">5</button><button class="exam-num done">6</button><button class="exam-num done">7</button><button class="exam-num current">8</button><button class="exam-num">9</button><button class="exam-num">10</button><button class="exam-num">11</button><button class="exam-num">12</button><button class="exam-num">13</button><button class="exam-num">14</button><button class="exam-num">15</button><button class="exam-num">16</button><button class="exam-num">17</button><button class="exam-num">18</button><button class="exam-num">19</button><button class="exam-num">20</button>
+        </div>
+        <div class="exam-legend">
+          <div><span class="dot done"></span>已作答（7）</div>
+          <div><span class="dot current"></span>目前題目</div>
+          <div><span class="dot todo"></span>未作答（12）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="panel" id="s-weak">
+  <div class="page-head"><div><h1>弱點分析</h1><div class="page-sub">各單元答對率與學習盲點視覺化</div></div></div>
+  <div class="card">
+    <div class="weak-bar-row"><div class="unit-name">力學</div><div class="weak-bar-track"><div class="weak-bar-fill" style="width:82%;background:var(--teal-400)"></div></div><div class="weak-bar-pct">82%</div></div>
+    <div class="weak-bar-row"><div class="unit-name">電磁學</div><div class="weak-bar-track"><div class="weak-bar-fill" style="width:54%;background:#F2A623"></div></div><div class="weak-bar-pct">54%</div></div>
+    <div class="weak-bar-row"><div class="unit-name">波動與光學</div><div class="weak-bar-track"><div class="weak-bar-fill" style="width:31%;background:#E24B4A"></div></div><div class="weak-bar-pct">31%</div></div>
+  </div>
+  <div class="section-title">學習盲點警示</div>
+  <div class="grid grid-2">
+    <div class="card" style="border-color:#f0b3b3;background:var(--red-50);"><i class="ti ti-alert-triangle" style="color:var(--red-600);margin-right:8px;"></i>波動與光學 — 答對率偏低，建議加強複習</div>
+    <div class="card" style="border-color:#f0d9a8;background:var(--amber-50);"><i class="ti ti-alert-circle" style="color:var(--amber-600);margin-right:8px;"></i>電磁學 — 答對率中等，可安排練習</div>
+  </div>
+</div>
+<div class="panel" id="s-wrong">
+  <div class="page-head"><div><h1>錯題本</h1><div class="page-sub">自動收錄答錯的題目，可重新練習</div></div>
+    <button class="primary"><i class="ti ti-repeat"></i>重新練習全部</button></div>
+  <div class="card" style="padding:0;overflow:auto;"><table>
+    <thead><tr><th>題目</th><th>單元</th><th>答錯次數</th><th>下次複習</th><th>操作</th></tr></thead>
+    <tbody>
+      <tr><td>波的干涉現象發生的條件為何？</td><td>波動光學</td><td>2</td><td>明天</td><td class="row-actions"><i class="ti ti-player-play"></i></td></tr>
+      <tr><td>電場強度的計算公式為何？</td><td>電磁學</td><td>1</td><td>第 3 天</td><td class="row-actions"><i class="ti ti-player-play"></i></td></tr>
+    </tbody>
+  </table></div>
+</div>
+<div class="panel" id="s-remind">
+  <div class="page-head"><div><h1>複習提醒</h1><div class="page-sub">依艾賓浩斯遺忘曲線主動推播錯題複習</div></div></div>
+  <div class="card">
+    <div class="toggle-row" style="border-top:none;"><span>Email 複習提醒</span><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+    <div class="toggle-row"><span>答錯後第 1 天推播</span><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+    <div class="toggle-row"><span>答錯後第 3 天推播</span><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+    <div class="toggle-row"><span>答錯後第 7 天推播</span><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+  </div>
+</div>
+<div class="panel" id="s-analysis">
+  <div class="page-head"><div><h1>學習成效分析</h1><div class="page-sub">個人學習狀況與趨勢</div></div></div>
+  <div class="grid grid-3">
+    <div class="card metric-card"><div class="label">整體答對率</div><div class="value">73%</div></div>
+    <div class="card metric-card"><div class="label">累計練習題數</div><div class="value">462</div></div>
+    <div class="card metric-card"><div class="label">已掌握單元數</div><div class="value">6 / 9</div></div>
+  </div>
+</div>
+<div class="panel" id="s-bankinfo">
+  <div class="page-head"><div><h1>題庫資訊</h1><div class="page-sub">目前選取範圍的題庫概況</div></div></div>
+  <div class="grid grid-4">
+    <div class="card metric-card"><div class="label">最後更新時間</div><div class="value" style="font-size:16px;">2026-08-24</div></div>
+    <div class="card metric-card"><div class="label">本科目總題數</div><div class="value">348</div></div>
+    <div class="card metric-card"><div class="label">目前選取題目數</div><div class="value">120</div></div>
+    <div class="card metric-card"><div class="label">本範圍已練習題數</div><div class="value">76</div></div>
+  </div>
+</div>
+<div class="panel" id="s-record">
+  <div class="page-head"><div><h1>自我評量紀錄</h1><div class="page-sub">查看或清除歷次測驗成績</div></div>
+    <button class="ghost"><i class="ti ti-trash"></i>清除紀錄</button></div>
+  <div class="card" style="padding:0;overflow:auto;"><table>
+    <thead><tr><th>測驗名稱</th><th>日期</th><th>題數</th><th>得分</th></tr></thead>
+    <tbody>
+      <tr><td>單元練習：力學</td><td>2026-08-23</td><td>20</td><td>85</td></tr>
+      <tr><td>期中模擬考 A 卷</td><td>2026-08-20</td><td>30</td><td>72</td></tr>
+    </tbody>
+  </table></div>
+</div>
+<div class="panel" id="s-announce">
+  <div class="page-head"><div><h1>課程公告</h1></div></div>
+  <div class="card">
+    <div class="announce-item"><div class="a-title">期中考範圍公告：第 1～5 章</div><div class="a-meta">2026-08-20 發布</div></div>
+    <div class="announce-item"><div class="a-title">本週三停課一次，測驗延期</div><div class="a-meta">2026-08-18 發布</div></div>
+  </div>
+</div>
+
+<!-- ===== 管理者面板 ===== -->
+<div class="panel" id="m-dash">
+  <div class="page-head"><div><h1>儀表板</h1><div class="page-sub">系統整體使用狀況</div></div></div>
+  <div class="grid grid-4">
+    <div class="card metric-card"><div class="label">總使用者數</div><div class="value">1,042</div></div>
+    <div class="card metric-card"><div class="label">今日匯入次數</div><div class="value">57</div></div>
+    <div class="card metric-card"><div class="label">AI 用量（本月）</div><div class="value">68%</div></div>
+    <div class="card metric-card"><div class="label">儲存空間使用率</div><div class="value">41%</div></div>
+  </div>
+</div>
+<div class="panel" id="m-account">
+  <div class="page-head"><div><h1>帳號管理</h1><div class="page-sub">新增、停用、編輯、查詢使用者帳號</div></div>
+    <button class="primary"><i class="ti ti-user-plus"></i>新增帳號</button></div>
+  <div class="filter-bar"><input type="text" placeholder="搜尋姓名或帳號"></div>
+  <div class="card" style="padding:0;overflow:auto;"><table>
+    <thead><tr><th>姓名</th><th>角色</th><th>狀態</th><th>操作</th></tr></thead>
+    <tbody>
+      <tr><td>王老師</td><td>老師</td><td><span class="tag ai">啟用中</span></td><td class="row-actions"><i class="ti ti-edit"></i><i class="ti ti-ban"></i></td></tr>
+      <tr><td>李小老師</td><td>小老師</td><td><span class="tag ai">啟用中</span></td><td class="row-actions"><i class="ti ti-edit"></i><i class="ti ti-ban"></i></td></tr>
+      <tr><td>陳同學</td><td>學生</td><td><span class="tag manual">停用</span></td><td class="row-actions"><i class="ti ti-edit"></i><i class="ti ti-rotate"></i></td></tr>
+    </tbody>
+  </table></div>
+<div class="panel" id="m-perm">
+  <div class="page-head"><div><h1>權限設定</h1><div class="page-sub">調整老師與小老師的功能權限</div></div></div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div style="background:linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);border-bottom:1px solid #fde68a;padding:12px 16px;display:flex;align-items:center;gap:10px;">
+      <span style="background:#f59e0b;color:#fff;width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:16px;">⭐</span>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:#78350f;">小老師姓名：<span style="background:#fff;padding:1px 8px;border-radius:4px;border:1px solid #fbbf24;color:#92400e;">李小老師</span></div>
+        <div style="font-size:11.5px;color:#92400e;margin-top:2px;">角色身分：課程小老師 · 全域權限配置</div>
+      </div>
+    </div>
+    <table style="width:100%;margin:0;border-collapse:collapse;">
+      <thead>
+        <tr style="background:#f8fafc;border-bottom:2px solid var(--line);">
+          <th style="width:60px;text-align:center;">授權</th>
+          <th style="width:180px;">功能模組</th>
+          <th>權限詳細說明</th>
+          <th style="width:90px;text-align:center;">狀態</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="text-align:center;"><input type="checkbox" checked style="accent-color:var(--teal-600);width:16px;height:16px;"></td>
+          <td><div style="display:flex;align-items:center;gap:6px;font-weight:600;"><i class="ti ti-books" style="color:#2563eb;"></i> 題庫管理與審核</div></td>
+          <td style="font-size:12.5px;color:var(--ink-soft);">可新增/修改題目、管理單元、匯入考卷與審核 AI 題目</td>
+          <td style="text-align:center;"><span class="tag" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-size:11.5px;padding:2px 8px;border-radius:10px;">已授權</span></td>
+        </tr>
+        <tr>
+          <td style="text-align:center;"><input type="checkbox" checked style="accent-color:var(--teal-600);width:16px;height:16px;"></td>
+          <td><div style="display:flex;align-items:center;gap:6px;font-weight:600;"><i class="ti ti-file-text" style="color:#7c3aed;"></i> 測驗發布與組卷</div></td>
+          <td style="font-size:12.5px;color:var(--ink-soft);">可發起課堂測驗、快速組卷、檢視全班作答狀態</td>
+          <td style="text-align:center;"><span class="tag" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-size:11.5px;padding:2px 8px;border-radius:10px;">已授權</span></td>
+        </tr>
+        <tr>
+          <td style="text-align:center;"><input type="checkbox" checked style="accent-color:var(--teal-600);width:16px;height:16px;"></td>
+          <td><div style="display:flex;align-items:center;gap:6px;font-weight:600;"><i class="ti ti-chart-bar" style="color:#059669;"></i> 成績與學習分析</div></td>
+          <td style="font-size:12.5px;color:var(--ink-soft);">可查閱全班測驗成績分佈、單元薄弱度統計分析</td>
+          <td style="text-align:center;"><span class="tag" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-size:11.5px;padding:2px 8px;border-radius:10px;">已授權</span></td>
+        </tr>
+        <tr>
+          <td style="text-align:center;"><input type="checkbox" style="accent-color:var(--teal-600);width:16px;height:16px;"></td>
+          <td><div style="display:flex;align-items:center;gap:6px;font-weight:600;"><i class="ti ti-edit" style="color:#d97706;"></i> 作業批改與回饋</div></td>
+          <td style="font-size:12.5px;color:var(--ink-soft);">可檢視學生繳交之作業並給予評語與批閱分數</td>
+          <td style="text-align:center;"><span class="tag" style="background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;font-size:11.5px;padding:2px 8px;border-radius:10px;">未授權</span></td>
+        </tr>
+        <tr>
+          <td style="text-align:center;"><input type="checkbox" style="accent-color:var(--teal-600);width:16px;height:16px;"></td>
+          <td><div style="display:flex;align-items:center;gap:6px;font-weight:600;"><i class="ti ti-user-check" style="color:#0891b2;"></i> 點名與學生管理</div></td>
+          <td style="font-size:12.5px;color:var(--ink-soft);">可協助課堂點名與登記修課學生備註事項</td>
+          <td style="text-align:center;"><span class="tag" style="background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;font-size:11.5px;padding:2px 8px;border-radius:10px;">未授權</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="panel" id="m-announce">
+  <div class="page-head"><div><h1>系統公告</h1></div>
+    <button class="primary"><i class="ti ti-plus"></i>發布公告</button></div>
+  <div class="card"><div class="announce-item"><div class="a-title">系統將於本週六凌晨進行例行維護</div><div class="a-meta">2026-08-22 發布</div></div></div>
+</div>
+<div class="panel" id="m-usage">
+  <div class="page-head"><div><h1>系統用量</h1><div class="page-sub">匯入次數、AI 用量、儲存空間監控</div></div></div>
+  <div class="grid grid-3">
+    <div class="card metric-card"><div class="label">本月匯入總次數</div><div class="value">1,860</div></div>
+    <div class="card metric-card"><div class="label">AI 出題呼叫次數</div><div class="value">4,320</div></div>
+    <div class="card metric-card"><div class="label">儲存空間</div><div class="value">412 GB / 1 TB</div></div>
+  </div>
+</div>
+<div class="panel" id="m-log">
+  <div class="page-head"><div><h1>錯誤紀錄</h1><div class="page-sub">系統異常回報與排除</div></div></div>
+  <div class="card" style="padding:0;overflow:auto;"><table>
+    <thead><tr><th>時間</th><th>類型</th><th>說明</th><th>狀態</th></tr></thead>
+    <tbody>
+      <tr><td>2026-08-24 09:12</td><td>匯入失敗</td><td>PDF 檔案格式無法解析</td><td><span class="tag high">未處理</span></td></tr>
+      <tr><td>2026-08-23 15:40</td><td>AI 逾時</td><td>統整題生成逾時</td><td><span class="tag low">已處理</span></td></tr>
+    </tbody>
+  </table></div>
+</div>
+<div class="panel" id="m-course">
+  <div class="page-head">
+    <div>
+      <h1>課程資料管理</h1>
+      <div class="page-sub">管理全校所有課程清單與學生名冊</div>
+    </div>
+    <button class="primary" onclick="openCreateCoursePage()"><i class="ti ti-plus"></i>新增課程</button>
+  </div>
+  <div class="card" style="padding:0;overflow:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:55px;text-align:center;">序號</th>
+          <th>課程名稱</th>
+          <th>開課年級 / 班級</th>
+          <th>授課教師</th>
+          <th>學生人數與小老師</th>
+          <th style="text-align:center;">狀態</th>
+          <th style="text-align:right;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="adminCourseTableBody">
+        <tr>
+          <td colspan="7" style="text-align:center;color:var(--ink-mute);padding:32px;">
+            <i class="ti ti-school-off" style="font-size:24px;display:block;margin-bottom:6px;"></i>
+            目前尚無課程資料
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+    </main>
+  </div>
+  <footer class="footbar">© 2026 教育大市集（Education Marketplace）· 智慧題庫管理與學習分析系統</footer>
+</div>
+
+<!-- ========== Global Modal ========== -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-dialog" id="modalDialog" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">標題</div>
+      <i class="ti ti-x modal-close" id="modalClose"></i>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter">
+      <button class="ghost" id="modalCancelBtn">取消</button>
+      <button class="primary" id="modalConfirmBtn">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Toast Container ========== -->
+<div id="toastContainer"></div>
+
+<!-- SheetJS (Excel / CSV 解析與範本下載) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
