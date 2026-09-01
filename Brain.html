@@ -1,0 +1,3287 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="screen-orientation" content="portrait">
+<meta name="x5-orientation" content="portrait">
+<meta name="full-screen" content="yes">
+<title>腦動波 BrainWave</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800&family=Noto+Sans+TC:wght@500;700;900&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous" defer></script>
+<style>
+:root {
+  --sky-top: #5BA6FF;
+  --sky-bottom: #DCEEFF;
+  --bg: #F4F8FF;
+  --panel: #FFFFFF;
+  --line: #2D3748;
+  --line-soft: #E2E8F0;
+  --primary: #FF70A6;
+  --primary-shadow: #D9467E;
+  --mint: #48CA9B;
+  --mint-dark: #2F9B73;
+  --yellow: #FFD670;
+  --yellow-shadow: #D9A836;
+  --blue: #70B8FF;
+  --blue-shadow: #438ED9;
+  --purple: #B28DFF;
+  --purple-shadow: #885FE0;
+  --orange: #FF9770;
+  --orange-shadow: #D9693E;
+  --text: #2D3748;
+  --subtext: #718096;
+  --font-main: 'Fredoka', 'Noto Sans TC', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; margin: 0; padding: 0; }
+body, html {
+  height: 100%;
+  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 100%);
+  color: var(--text);
+  font-family: var(--font-main);
+  overflow: hidden;
+  position: relative;
+}
+
+#orientationBlocker {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: #2D3748;
+  color: #FFF;
+  z-index: 99999;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+@media screen and (orientation: landscape) and (max-height: 480px) {
+  #orientationBlocker { display: flex; }
+}
+
+.cloud-bg {
+  position: absolute;
+  background: rgba(255,255,255,0.7);
+  border-radius: 50px;
+  filter: blur(1px);
+  pointer-events: none;
+  animation: floatCloud linear infinite;
+}
+.cloud-1 { width: 140px; height: 45px; top: 8%; left: -150px; animation-duration: 26s; }
+.cloud-2 { width: 180px; height: 60px; top: 22%; left: -200px; animation-duration: 38s; animation-delay: 8s; }
+.cloud-3 { width: 120px; height: 40px; top: 65%; left: -130px; animation-duration: 30s; animation-delay: 15s; }
+@keyframes floatCloud {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(100vw + 300px)); }
+}
+
+#app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  max-width: 440px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+.bubbly-btn {
+  background: var(--panel);
+  border: 2.5px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 4px 0 var(--line);
+  color: var(--text);
+  font-family: var(--font-main);
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.1s;
+}
+.bubbly-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
+
+#splash {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: var(--sky-bottom);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 0 30px;
+  transition: opacity 0.45s ease;
+}
+#splash.hide { opacity: 0; pointer-events: none; }
+.splash-logo-container {
+  width: 170px;
+  height: 170px;
+  border-radius: 32px;
+  border: 4px solid var(--line);
+  box-shadow: 0 8px 0 var(--line);
+  overflow: hidden;
+  background: #FFD670;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.splash-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.splash-badge {
+  background: var(--line);
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 15px;
+  transform: rotate(-3deg);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.15);
+}
+.splash-bar-wrap {
+  position: relative;
+  width: 80%;
+  max-width: 260px;
+  height: 32px;
+  background: #E2E8F0;
+  border: 2.5px solid var(--line);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.splash-bar-fill {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 0%;
+  background: var(--primary);
+  border-radius: 20px;
+  transition: width 0.15s ease-out;
+}
+.splash-pct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 13px;
+  color: #fff;
+}
+
+.app-header {
+  margin: 10px 14px 4px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 2.5px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 0 4px 0 rgba(45, 55, 72, 0.15);
+}
+.app-logo { display: flex; align-items: center; gap: 10px; }
+.logo-thumb-container {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 2px solid var(--line);
+  box-shadow: 0 2.5px 0 var(--line);
+  overflow: hidden;
+  background: #FFD670;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.logo-img-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.logo-text-wrap { display: flex; flex-direction: column; }
+.logo-title { font-size: 17px; font-weight: 900; color: var(--text); line-height: 1.1; letter-spacing: -0.3px; }
+.logo-subtitle { font-size: 10px; font-weight: 800; color: var(--primary); letter-spacing: 0.5px; }
+.header-actions { display: flex; align-items: center; gap: 6px; }
+.icon-btn { width: 36px; height: 36px; padding: 0; border-radius: 12px; }
+.status-pill {
+  background: var(--bg);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.story-banner {
+  margin: 10px 14px 4px;
+  background: linear-gradient(135deg, #FF70A6, #B28DFF);
+  border: 2.5px solid var(--line);
+  border-radius: 22px;
+  padding: 14px 16px;
+  color: #FFF;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 5px 0 var(--line);
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.story-banner:active { transform: translateY(3px); }
+.story-title { font-size: 16px; font-weight: 900; letter-spacing: 0.5px; }
+.story-desc { font-size: 11px; opacity: 0.92; margin-top: 2px; font-weight: 600; }
+
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 14px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-pill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.7);
+  border: 2px solid transparent;
+  color: var(--subtext);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tab-pill.active {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--text);
+  box-shadow: 0 2px 0 var(--line);
+}
+
+.games-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 14px 28px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-content: start;
+}
+.games-scroll::-webkit-scrollbar { display: none; }
+
+.game-card {
+  background: var(--panel);
+  border: 2.5px solid var(--line);
+  border-radius: 22px;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 5px 0 var(--card-shadow, var(--line));
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s;
+}
+.game-card:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--card-shadow, var(--line)); }
+.game-icon-bubble {
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  background: var(--card-color, var(--blue));
+  border: 2px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  box-shadow: 0 3px 0 var(--card-shadow, var(--blue-shadow));
+}
+.game-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 2px; }
+.game-tag { font-size: 11px; color: var(--subtext); font-weight: 600; }
+
+#introModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(45, 55, 72, 0.6);
+  backdrop-filter: blur(5px);
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+#introModal.show { display: flex; }
+.intro-card {
+  background: var(--panel);
+  border: 3px solid var(--line);
+  border-radius: 28px;
+  padding: 24px 20px;
+  width: 100%;
+  max-width: 330px;
+  box-shadow: 0 8px 0 var(--line);
+  text-align: center;
+  animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.intro-badge {
+  display: inline-block;
+  background: var(--yellow);
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.diff-desc-box {
+  background: var(--bg);
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  color: var(--primary);
+  font-weight: 800;
+  margin-bottom: 14px;
+}
+.diff-selector { display: flex; gap: 8px; margin: 10px 0 16px; }
+.diff-btn {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 14px;
+  border: 2px solid var(--line);
+  background: var(--bg);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.diff-btn.active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--primary-shadow);
+}
+
+#musicModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(45, 55, 72, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 300;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+#musicModal.show { display: flex; }
+.music-card {
+  background: var(--panel);
+  border: 3px solid var(--line);
+  border-radius: 24px;
+  padding: 20px;
+  width: 100%;
+  max-width: 320px;
+  box-shadow: 0 6px 0 var(--line);
+  text-align: center;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  background: #EEF4FC;
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+#stage.active { display: flex; }
+
+.stage-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.96);
+  border-bottom: 2.5px solid var(--line);
+}
+.hud-section { display: flex; align-items: center; gap: 8px; }
+.hud-pill {
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pill-score { background: var(--yellow); box-shadow: 0 2px 0 var(--yellow-shadow); }
+.pill-progress { background: var(--mint); color: #FFF; box-shadow: 0 2px 0 var(--mint-dark); }
+
+.center-countdown-badge {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #FFF;
+  border: 2.5px solid var(--line);
+  border-radius: 22px;
+  padding: 6px 20px;
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--primary);
+  box-shadow: 0 4px 0 var(--line);
+  margin-bottom: 12px;
+  animation: pulseBadge 1s infinite alternate;
+}
+.center-countdown-badge.active { display: inline-flex; }
+@keyframes pulseBadge {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.05); }
+}
+
+.stage-content {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.prompt-title {
+  font-size: 15px;
+  color: var(--subtext);
+  font-weight: 700;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.hero-display {
+  font-size: 40px;
+  font-weight: 900;
+  margin-bottom: 18px;
+  animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes popIn { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+#camCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  z-index: 1;
+}
+#camFeed { display: none; }
+.cam-overlay {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.gyro-arena {
+  width: 230px;
+  height: 230px;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  background: var(--panel);
+  position: relative;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.04);
+}
+.gyro-target {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(72, 202, 155, 0.3);
+  border: 2px dashed var(--mint-dark);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.gyro-ball {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2.5px solid var(--line);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 3px 0 var(--primary-shadow);
+}
+
+.math-display-box {
+  background: var(--panel);
+  border: 2.5px solid var(--line);
+  border-radius: 16px;
+  padding: 10px 24px;
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  min-width: 220px;
+  text-align: center;
+  box-shadow: 0 3px 0 var(--line);
+}
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 260px;
+}
+.num-key {
+  padding: 12px;
+  font-size: 20px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 3px 0 var(--line);
+}
+
+.tone-slots-wrap {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0 16px;
+  justify-content: center;
+}
+.tone-slot {
+  width: 60px;
+  height: 60px;
+  background: #FFF;
+  border: 2.5px dashed var(--line);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--primary);
+  box-shadow: 0 2px 0 var(--line-soft);
+}
+.tone-slot.filled {
+  border-style: solid;
+  border-color: var(--mint-dark);
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 3px 0 var(--mint-dark);
+}
+
+.draw-box {
+  background: var(--panel);
+  border: 3px solid var(--line);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 4px 0 var(--line);
+  touch-action: none;
+}
+#dCanvas {
+  display: block;
+  touch-action: none;
+}
+
+.result-box {
+  text-align: center;
+  background: var(--panel);
+  border: 3px solid var(--line);
+  border-radius: 28px;
+  padding: 26px 20px;
+  width: 90%;
+  max-width: 320px;
+  box-shadow: 0 6px 0 var(--line);
+  animation: popIn 0.3s ease;
+}
+.result-score {
+  font-size: 52px;
+  font-weight: 900;
+  color: var(--primary);
+  margin: 10px 0 12px;
+  font-family: var(--font-mono);
+}
+
+@keyframes fusionSuccess {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3) rotate(8deg); }
+  100% { transform: scale(1); }
+}
+@keyframes shakeFail {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+.fusion-ok { animation: fusionSuccess 0.4s ease-out; }
+.fusion-fail { animation: shakeFail 0.35s ease-in-out; }
+
+.flash-correct {
+  animation: flashGreen 0.3s ease;
+}
+@keyframes flashGreen {
+  0% { box-shadow: 0 0 0 0 rgba(72, 202, 155, 0.8); }
+  70% { box-shadow: 0 0 25px 8px rgba(72, 202, 155, 0.9); }
+  100% { box-shadow: 0 0 0 0 rgba(72, 202, 155, 0); }
+}
+</style>
+</head>
+<body>
+
+<div id="orientationBlocker">
+  <div style="font-size:42px; margin-bottom:12px;">📱</div>
+  <div style="font-size:20px; font-weight:900; margin-bottom:8px;">請將手機轉為直向</div>
+  <div style="font-size:14px; opacity:0.8;">腦動波專為直向單手操作設計，請轉回直向體驗最佳特訓！</div>
+</div>
+
+<div class="cloud-bg cloud-1"></div>
+<div class="cloud-bg cloud-2"></div>
+<div class="cloud-bg cloud-3"></div>
+
+<div id="app">
+  <div id="splash">
+    <div class="splash-logo-container">
+      <img id="splashImg" src="Brain_logo.png" alt="腦動波" class="splash-logo-img">
+    </div>
+    <div class="splash-badge">30 種不重複腦力特訓</div>
+    <div class="splash-bar-wrap">
+      <div class="splash-bar-fill" id="splashBarFill"></div>
+      <div class="splash-pct" id="splashPct">0%</div>
+    </div>
+  </div>
+
+  <header class="app-header">
+    <div class="app-logo">
+      <div class="logo-thumb-container">
+        <img id="headerThumbImg" src="Brain_logo.png" alt="腦動波" class="logo-img-thumb">
+      </div>
+      <div class="logo-text-wrap">
+        <span class="logo-title">腦動波</span>
+        <span class="logo-subtitle">BRAINWAVE ARCADE</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="bubbly-btn icon-btn" id="muteToggle" title="靜音切換">
+        <svg id="muteIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      </button>
+      <button class="bubbly-btn icon-btn" id="musicBtn" title="音樂設定">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <div class="status-pill" id="statBadge">連續 0 局</div>
+    </div>
+  </header>
+
+  <div class="story-banner" id="storyBtn">
+    <div>
+      <div class="story-title">腦力連鎖超載模式</div>
+      <div class="story-desc">隨機切換 5 腦區關卡，挑戰累積最高總分！</div>
+    </div>
+    <div class="bubbly-btn" style="padding:8px 14px; font-size:13px; background:#FFF; color:var(--text);">挑戰 ▶</div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-pill active" data-filter="all">全部 (30)</div>
+    <div class="tab-pill" data-filter="classic">認知與運算</div>
+    <div class="tab-pill" data-filter="sensor">感官與體感</div>
+    <div class="tab-pill" data-filter="relax">療癒舒壓</div>
+  </div>
+
+  <div class="games-scroll" id="gamesGrid"></div>
+</div>
+
+<div id="musicModal">
+  <div class="music-card">
+    <h3 style="font-size:18px; font-weight:900; margin-bottom:12px;">背景音樂風格設定</h3>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <span style="font-size:14px; font-weight:800;">當前風格：</span>
+      <button class="bubbly-btn" id="nextTrackBtn" style="padding:6px 14px; font-size:12px;">換一首 ⏭️</button>
+    </div>
+    <div style="font-size:13px; font-weight:800; color:var(--primary); margin-bottom:16px;" id="currentTrackName">曲目 1：陽光微風 (Sunny Breeze)</div>
+    
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:18px;">
+      <span style="font-size:13px; font-weight:800;">音量</span>
+      <input type="range" id="volumeSlider" min="0" max="100" value="70" style="flex:1;">
+      <span style="font-size:13px; font-weight:800;" id="volText">70%</span>
+    </div>
+
+    <button class="bubbly-btn" id="closeMusicBtn" style="width:100%; padding:10px; font-size:14px; background:var(--mint); color:#FFF; box-shadow:0 3px 0 var(--mint-dark);">確定</button>
+  </div>
+</div>
+
+<div id="introModal">
+  <div class="intro-card">
+    <div class="intro-badge" id="introBrain">前額葉抑制控制</div>
+    <h2 id="introTitle" style="font-size:20px; font-weight:900; margin-bottom:8px;">遊戲標題</h2>
+    <p id="introDesc" style="font-size:13px; color:var(--subtext); line-height:1.5; margin-bottom:10px;">遊戲詳細規則與鍛鍊目的說明。</p>
+    
+    <div class="diff-desc-box" id="diffDescText">難度特性說明...</div>
+
+    <div id="diffFullContainer">
+      <div style="font-size:12px; font-weight:800; color:var(--text); text-align:left;">選擇訓練難度：</div>
+      <div class="diff-selector" id="diffSelectorWrap">
+        <button class="diff-btn active" data-d="easy">簡單</button>
+        <button class="diff-btn" data-d="normal">普通</button>
+        <button class="diff-btn" data-d="hard">困難</button>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
+      <button class="bubbly-btn" id="startPlayBtn" style="width:100%; padding:14px; background:var(--mint); color:#FFF; box-shadow:0 4px 0 var(--mint-dark); font-size:16px;">開始訓練 ▶</button>
+      <button class="bubbly-btn" id="cancelIntroBtn" style="width:100%; padding:10px; font-size:13px; color:var(--subtext);">✕ 返回首頁</button>
+    </div>
+  </div>
+</div>
+
+<div id="stage">
+  <header class="stage-hud">
+    <button class="bubbly-btn" style="padding:6px 12px; font-size:13px;" id="quitBtn">← 返回首頁</button>
+    <div class="hud-section">
+      <div class="hud-pill pill-progress" id="progressBox"><span id="progressText">特訓</span></div>
+      <div class="hud-pill pill-score" id="scoreBox"><span id="scoreText">0 分</span></div>
+    </div>
+  </header>
+  <div class="stage-content" id="stageInner"></div>
+</div>
+
+<script>
+let currentGameData = null;
+let currentDifficulty = 'normal';
+let currentScore = 0;
+let isStoryMode = false;
+let storyStep = 0;
+let timers = [];
+let animFrame = null;
+let gameSessionId = 0;
+
+function shuffle(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function lockToPortrait() {
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('portrait').catch(()=>{});
+    } else if (screen.lockOrientation) {
+      screen.lockOrientation('portrait');
+    }
+  } catch(e) {}
+}
+window.addEventListener('load', lockToPortrait);
+document.addEventListener('click', lockToPortrait, { once: true });
+
+const SafeStorage = {
+  get: function(key, defaultVal) {
+    try {
+      const val = localStorage.getItem(key);
+      return val !== null ? val : defaultVal;
+    } catch(e) {
+      return defaultVal;
+    }
+  },
+  set: function(key, val) {
+    try {
+      localStorage.setItem(key, val);
+    } catch(e) {}
+  }
+};
+
+let consecutiveWins = parseInt(SafeStorage.get('bw_wins_v7', '0'));
+
+function updateHeaderStat() {
+  const el = document.getElementById('statBadge');
+  if (el) el.textContent = `連續 ${consecutiveWins} 局`;
+}
+updateHeaderStat();
+
+function clearAllTimers() {
+  gameSessionId++;
+  timers.forEach(t => {
+    try {
+      if (t && t.clear) t.clear();
+      else clearTimeout(t);
+    } catch(e) {}
+  });
+  timers = [];
+  if (animFrame) {
+    try { cancelAnimationFrame(animFrame); } catch(e) {}
+    animFrame = null;
+  }
+}
+
+function setHudProgress(txt) {
+  const el = document.getElementById('progressText');
+  if (el) el.textContent = txt;
+}
+
+function updateScore(s) {
+  if (isStoryMode) {
+    currentScore = Math.max(0, s);
+  } else {
+    currentScore = Math.min(100, Math.max(0, s));
+  }
+  const el = document.getElementById('scoreText');
+  if (el) el.textContent = `${currentScore} 分`;
+}
+
+function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function pick(arr) { return arr[rand(0, arr.length - 1)]; }
+function isPrime(n) {
+  if (n < 2) return false;
+  for (let i = 2; i * i <= n; i++) if (n % i === 0) return false;
+  return true;
+}
+
+class SoundEngine {
+  constructor() {
+    this.ctx = null;
+    this.masterGain = null;
+    this.bgmGain = null;
+    this.sfxGain = null;
+    this.isMuted = false;
+    this.bgmPlaying = false;
+    this.bgmTimer = null;
+    this.currentTrack = 0;
+    
+    this.tracks = [
+      { 
+        name: '曲目 1：陽光微風 (Sunny Breeze)', 
+        type: 'sine',
+        chords: [[261.63, 329.63, 392.00], [220.00, 261.63, 329.63], [174.61, 220.00, 261.63], [196.00, 246.94, 293.66]],
+        arpeggio: [523.25, 659.25, 783.99, 659.25, 523.25, 392.00],
+        tempo: 550,
+        gainMult: 0.12
+      },
+      { 
+        name: '曲目 2：深層專注 (Deep Focus)', 
+        type: 'sine',
+        chords: [[146.83, 174.61, 220.00], [130.81, 164.81, 196.00], [116.54, 146.83, 174.61], [110.00, 138.59, 164.81]],
+        arpeggio: [293.66, 349.23, 440.00, 392.00, 293.66, 220.00],
+        tempo: 800,
+        gainMult: 0.14
+      },
+      { 
+        name: '曲目 3：八音盒之夢 (Music Box Dream)', 
+        type: 'triangle',
+        chords: [[261.63, 392.00, 523.25], [293.66, 369.99, 440.00], [329.63, 392.00, 493.88], [261.63, 329.63, 392.00]],
+        arpeggio: [659.25, 783.99, 1046.50, 783.99, 880.00, 523.25],
+        tempo: 450,
+        gainMult: 0.10
+      },
+      { 
+        name: '曲目 4：像素復古波 (8-Bit Retro)', 
+        type: 'square',
+        chords: [[130.81, 196.00], [146.83, 220.00], [164.81, 246.94], [130.81, 196.00]],
+        arpeggio: [261.63, 329.63, 392.00, 523.25, 392.00, 329.63],
+        tempo: 360,
+        gainMult: 0.08
+      },
+      { 
+        name: '曲目 5：禪意靜心 (Zen Meditation)', 
+        type: 'sine',
+        chords: [[216.00, 324.00, 432.00], [192.00, 288.00, 384.00], [162.00, 243.00, 324.00], [216.00, 324.00, 432.00]],
+        arpeggio: [432.00, 540.00, 648.00, 540.00],
+        tempo: 900,
+        gainMult: 0.15
+      }
+    ];
+    this.step = 0;
+  }
+
+  init() {
+    if (!this.ctx) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          this.ctx = new AudioCtx();
+          this.masterGain = this.ctx.createGain();
+          this.masterGain.gain.setValueAtTime(1, this.ctx.currentTime);
+          this.masterGain.connect(this.ctx.destination);
+
+          this.bgmGain = this.ctx.createGain();
+          this.bgmGain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+          this.bgmGain.connect(this.masterGain);
+
+          this.sfxGain = this.ctx.createGain();
+          this.sfxGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+          this.sfxGain.connect(this.masterGain);
+        }
+      } catch(e) {}
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      try { this.ctx.resume(); } catch(e) {}
+    }
+  }
+
+  playSFX(freq = 440, type = 'sine', duration = 0.12) {
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(1, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start();
+      osc.stop(this.ctx.currentTime + duration);
+      setTimeout(() => {
+        try { osc.disconnect(); gain.disconnect(); } catch(e) {}
+      }, (duration + 0.1) * 1000);
+    } catch(e) {}
+  }
+
+  pop() { this.playSFX(620, 'sine', 0.06); }
+  hit() { this.playSFX(880, 'triangle', 0.1); }
+  fail() { this.playSFX(180, 'sawtooth', 0.2); }
+  combo() { this.playSFX(1046, 'sine', 0.15); }
+  zen(freq) { this.playSFX(freq || 432, 'sine', 0.5); }
+
+  startBGM() {
+    this.init();
+    if (!this.ctx || this.bgmPlaying || this.isMuted) return;
+    this.bgmPlaying = true;
+    this.scheduleBGM();
+  }
+
+  scheduleBGM() {
+    if (this.bgmTimer) clearInterval(this.bgmTimer);
+    const trk = this.tracks[this.currentTrack];
+    
+    this.bgmTimer = setInterval(() => {
+      if (!this.ctx || !this.bgmPlaying || this.isMuted) return;
+      try {
+        const chordIdx = Math.floor(this.step / trk.arpeggio.length) % trk.chords.length;
+        const noteIdx = this.step % trk.arpeggio.length;
+
+        if (noteIdx === 0) {
+          trk.chords[chordIdx].forEach(f => {
+            const osc = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(f, this.ctx.currentTime);
+            g.gain.setValueAtTime(0.001, this.ctx.currentTime);
+            g.gain.linearRampToValueAtTime(trk.gainMult * 0.8, this.ctx.currentTime + 0.3);
+            g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + (trk.tempo * trk.arpeggio.length / 1000));
+            osc.connect(g);
+            g.connect(this.bgmGain);
+            osc.start();
+            osc.stop(this.ctx.currentTime + (trk.tempo * trk.arpeggio.length / 1000));
+            setTimeout(() => {
+              try { osc.disconnect(); g.disconnect(); } catch(e){}
+            }, trk.tempo * trk.arpeggio.length + 100);
+          });
+        }
+
+        const freq = trk.arpeggio[noteIdx];
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = trk.type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        g.gain.setValueAtTime(trk.gainMult, this.ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+        osc.connect(g);
+        g.connect(this.bgmGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.45);
+        setTimeout(() => {
+          try { osc.disconnect(); g.disconnect(); } catch(e){}
+        }, 550);
+
+        this.step++;
+      } catch(e) {}
+    }, trk.tempo);
+  }
+
+  nextTrack() {
+    this.currentTrack = (this.currentTrack + 1) % this.tracks.length;
+    this.step = 0;
+    if (this.bgmPlaying) this.scheduleBGM();
+    return this.tracks[this.currentTrack].name;
+  }
+
+  setVolume(pct) {
+    if (!this.bgmGain) this.init();
+    if (!this.ctx) return;
+    const val = (pct / 100) * 0.22;
+    try { this.bgmGain.gain.setValueAtTime(val, this.ctx.currentTime); } catch(e) {}
+  }
+
+  toggleMute() {
+    this.init();
+    this.isMuted = !this.isMuted;
+    if (this.masterGain && this.ctx) {
+      try {
+        if (this.isMuted) {
+          this.masterGain.gain.setValueAtTime(0, this.ctx.currentTime);
+        } else {
+          this.masterGain.gain.setValueAtTime(1, this.ctx.currentTime);
+          if (!this.bgmPlaying) this.startBGM();
+        }
+      } catch(e) {}
+    }
+    return this.isMuted;
+  }
+}
+const sfx = new SoundEngine();
+
+const muteBtn = document.getElementById('muteToggle');
+const muteIcon = document.getElementById('muteIcon');
+if (muteBtn && muteIcon) {
+  muteBtn.onclick = () => {
+    const muted = sfx.toggleMute();
+    muteIcon.innerHTML = muted 
+      ? `<line x1="1" y1="1" x2="23" y2="23"/><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>`
+      : `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>`;
+  };
+}
+
+const musicModal = document.getElementById('musicModal');
+document.getElementById('musicBtn').onclick = () => {
+  sfx.startBGM();
+  musicModal.classList.add('show');
+};
+document.getElementById('nextTrackBtn').onclick = () => {
+  const name = sfx.nextTrack();
+  document.getElementById('currentTrackName').textContent = name;
+  sfx.pop();
+};
+document.getElementById('volumeSlider').oninput = (e) => {
+  const val = e.target.value;
+  sfx.setVolume(val);
+  document.getElementById('volText').textContent = val + '%';
+};
+document.getElementById('closeMusicBtn').onclick = () => musicModal.classList.remove('show');
+
+const ICONS = {
+  arrow: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`,
+  stroop: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 1 0 7 7"/></svg>`,
+  math: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 12h16M12 4v16"/></svg>`,
+  camRain: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
+  gyro: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>`,
+  draw: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>`,
+  tone: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`,
+  prime: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>`,
+  nback: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/></svg>`,
+  fusion: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`,
+  shredder: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 10h16M10 4v16"/></svg>`,
+  gesture: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 11V6a2 2 0 0 0-4 0v4M14 10V4a2 2 0 0 0-4 0v7M10 10.5V6a2 2 0 0 0-4 0v8a6 6 0 0 0 12 0v-3a2 2 0 0 0-4 0"/></svg>`,
+  bubble: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="8" r="2"/></svg>`,
+  rhythm: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>`,
+  search: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+  react: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+  balance: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 12h20M12 2v20"/></svg>`,
+  zen: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M8 12a4 4 0 0 1 8 0"/></svg>`,
+  ring: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg>`,
+  cardPair: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="8" height="10" rx="2"/><rect x="13" y="11" width="8" height="10" rx="2"/></svg>`
+};
+
+const FRUITS_SVGS = [
+  `<svg viewBox="0 0 48 48" style="width:48px; height:48px;"><path d="M6 22a18 18 0 0 0 36 0H6z" fill="#FF5C7A" stroke="#2D3748" stroke-width="2.5"/><path d="M6 22a18 18 0 0 0 36 0" fill="none" stroke="#2ECC71" stroke-width="4"/><circle cx="16" cy="28" r="1.5" fill="#2D3748"/><circle cx="24" cy="30" r="1.5" fill="#2D3748"/><circle cx="32" cy="28" r="1.5" fill="#2D3748"/></svg>`,
+  `<svg viewBox="0 0 48 48" style="width:48px; height:48px;"><path d="M24 12c-4-4-10-2-12 4-3 9 3 22 12 22s15-13 12-22c-2-6-8-8-12-4z" fill="#FF6B6B" stroke="#2D3748" stroke-width="2.5"/><path d="M24 12c0-4 2-6 5-7" fill="none" stroke="#2D3748" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+  `<svg viewBox="0 0 48 48" style="width:48px; height:48px;"><circle cx="24" cy="24" r="17" fill="#FF9F45" stroke="#2D3748" stroke-width="2.5"/><circle cx="24" cy="24" r="12" fill="#FFAF65"/><path d="M24 12v24M12 24h24" stroke="#FFF" stroke-width="2"/></svg>`,
+  `<svg viewBox="0 0 48 48" style="width:48px; height:48px;"><circle cx="24" cy="24" r="17" fill="#8D6E63" stroke="#2D3748" stroke-width="2.5"/><circle cx="24" cy="24" r="13" fill="#8BC34A"/><circle cx="24" cy="24" r="5" fill="#DCEDC8"/></svg>`,
+  `<svg viewBox="0 0 48 48" style="width:48px; height:48px;"><path d="M9 24c0-10 15-17 25-10s5 25-5 25-20-5-20-15z" fill="#FFD670" stroke="#2D3748" stroke-width="2.5"/></svg>`
+];
+
+const BUBBLE_SHAPES = [
+  `border-radius: 50%;`,
+  `border-radius: 12px;`,
+  `border-radius: 26px;`,
+  `border-radius: 50% 20% / 20% 50%;`
+];
+
+const ALL_30_GAMES = [
+  { id: 1, type: 'arrow', cat: 'classic', icon: ICONS.arrow, color: 'yellow', name: '逆向信號濾波', brain: '前額抑制控制', desc: '看到【同方向】順向點擊；看到【反方向】請抗拒直覺點相反方向！', diffDesc: { easy: '題數 10 題，同向信號佔比 70%', normal: '題數 10 題，同/逆向各半', hard: '題數 14 題，逆向信號頻繁出現達 75%' } },
+  { id: 2, type: 'stroop', cat: 'classic', icon: ICONS.stroop, color: 'orange', name: '色彩文字抗干擾', brain: '視覺抗干擾', desc: '文字內容是陷阱！請點選文字【實際顯示的顏色】。', diffDesc: { easy: '中央大字限時 35 秒，4 色選項', normal: '中央大字限時 25 秒，4 色選項', hard: '中央大字限時 18 秒，6 色選項' } },
+  { id: 3, type: 'math', cat: 'classic', icon: ICONS.math, color: 'yellow', name: '極速心算流', brain: '頂葉數值運算', desc: '連續解答 10 題加減法，在數字鍵盤即時輸入答案。', diffDesc: { easy: '個位數單純加減 (1~9)', normal: '雙位數加減法 (1~20)', hard: '加入乘除與負數運算' } },
+  { id: 4, type: 'camRain', cat: 'sensor', icon: ICONS.camRain, color: 'blue', name: 'AI 鏡頭光譜雨滴', brain: '手眼空間協調', desc: '開啟鏡頭，用【食指指尖】在空中觸摸掉落的光譜水滴！', diffDesc: { easy: '雨滴下落速度慢，共 10 顆', normal: '雨滴正常速度，共 10 顆', hard: '雨滴高速下落，共 15 顆多色' } },
+  { id: 5, type: 'gyro', cat: 'sensor', icon: ICONS.gyro, color: 'mint', name: '陀螺儀重力維持', brain: '前庭重心平衡', desc: '中央大字倒數！傾斜手機維持小球在綠色中心圈。', diffDesc: { easy: '中心安全圈特大 (直徑 90px)', normal: '中心安全圈標準 (直徑 70px)', hard: '中心安全圈微縮 (直徑 48px)' } },
+  { id: 6, type: 'drawCombined', cat: 'sensor', icon: ICONS.draw, color: 'orange', name: '幾何圖騰手繪封印', brain: '精細空間運動控制', desc: '隨機一筆畫繪製正圓、正方形、等邊三角形或五角星，嚴格評定形態！', diffDesc: { easy: '圖形判定標準寬鬆', normal: '標準 RMSE 均方根誤差與頂角檢驗', hard: '極嚴苛檢驗對稱性與長寬閉合度' } },
+  { id: 7, type: 'toneHighLow', cat: 'sensor', icon: ICONS.tone, color: 'blue', name: '純音頻率高低差', brain: '顳葉聽覺辨析', desc: '聆聽兩段純音，精準判斷第二聲是高音或低音。', diffDesc: { easy: '音高差距大 (80Hz)，10 題', normal: '音高差距標準 (45Hz)，10 題', hard: '音高微距辨識 (18Hz)，10 題' } },
+  { id: 8, type: 'primeSlice', cat: 'classic', icon: ICONS.prime, color: 'primary', name: '質數精準切分', brain: '數值感知與決策', desc: '水果落下，手指劃過切開【質數水果】，合數放過不切！', diffDesc: { easy: '數字範圍 2~20，速度慢', normal: '數字範圍 2~35，速度標準', hard: '數字範圍 2~60，水果高速下落' } },
+  { id: 9, type: 'nback1', cat: 'classic', icon: ICONS.nback, color: 'blue', name: '九宮格時空軌跡', brain: '空間工作記憶', desc: '記住亮起位置，點出指定次數前亮起的是哪一格。', diffDesc: { easy: 'N-Back 1，間隔 650ms，共 10 題', normal: 'N-Back 1，間隔 450ms，共 10 題', hard: 'N-Back 2 (前 2 次)，共 10 題' } },
+  { id: 10, type: 'colorFusion', cat: 'classic', icon: ICONS.fusion, color: 'mint', name: '色彩光譜調和', brain: '色彩直覺聯想', desc: '觀察上方兩色水滴，在時限內選出調配出的混合色。', diffDesc: { easy: '基礎三原色混色 (10 題)', normal: '標準混色調配 (10 題)', hard: '進階光學混合 (青/洋紅/琥珀 10 題)' } },
+  { id: 11, type: 'shredderMem', cat: 'classic', icon: ICONS.shredder, color: 'purple', name: '碎紙瞬間數字', brain: '瞬時視覺記憶', desc: '記住閃爍而過的數字密碼，隨後選出正確答案。', diffDesc: { easy: '3 位數，閃爍 900ms，10 題', normal: '4 位數，閃爍 650ms，10 題', hard: '5 位數，閃爍 400ms，10 題' } },
+  { id: 12, type: 'gestureAI', cat: 'sensor', icon: ICONS.gesture, color: 'purple', name: 'AI 手勢結印辨識', brain: '運動意圖轉譯', desc: '對著鏡頭即時比出【讚、剪刀手、手掌】通過驗證！', diffDesc: { easy: '共 10 輪，判定時間充裕', normal: '共 10 輪，標準辨識速率', hard: '共 10 輪，極速連鎖手勢切換' } },
+  { id: 13, type: 'bubbleRelax', cat: 'relax', icon: ICONS.bubble, color: 'blue', name: '造型氣泡捏捏樂', brain: '觸覺放鬆與專注', desc: '幾何造型氣泡多波次湧現，在時限內快速捏爆全部氣泡！', diffDesc: { easy: '共 3 波次造型氣泡', normal: '共 5 波次造型氣泡', hard: '共 7 波次造型氣泡且限時' } },
+  { id: 14, type: 'rhythmPiano', cat: 'sensor', icon: ICONS.rhythm, color: 'primary', name: '鋼琴下落節拍打擊', brain: '動態節奏微秒打擊', desc: '單點音符與長按音符隨機下落，會變速加速！Miss 扣分！', diffDesc: { easy: '下落速度均勻，寬鬆判定線', normal: '隨連擊慢慢加速，含長按音符', hard: '突然狂飆變速，微小判定窗口' } },
+  { id: 15, type: 'oddOneOut', cat: 'classic', icon: ICONS.search, color: 'yellow', name: '矩陣異類快速搜尋', brain: '選擇性注意力', desc: '在無陰影差異的符號方陣中，快速點出旋轉不同的符號！', diffDesc: { easy: '2x2 方陣，共 10 題', normal: '3x3 方陣，共 10 題', hard: '4x4 方陣，共 10 題且符號複雜' } },
+  { id: 16, type: 'reactionClick', cat: 'classic', icon: ICONS.react, color: 'mint', name: '閃電綠光反應力', brain: '單純反射神經', desc: '畫面變綠瞬間立刻點擊，大字顯示你的反應毫秒數 (ms)！', diffDesc: { easy: '寬鬆判定 (<400ms)', normal: '標準判定 (<280ms)', hard: '極限判定 (<210ms)' } },
+  { id: 17, type: 'sizeCompareMulti', cat: 'classic', icon: ICONS.balance, color: 'blue', name: '多形面積幾何對比', brain: '空間量感直覺判斷', desc: '隨機出現圓、方、三角或五邊形，快速點選面積較大的形狀！', diffDesc: { easy: '面積差距明顯，共 10 題', normal: '面積差距標準，共 10 題', hard: '微小面積差距，共 10 題' } },
+  { id: 18, type: 'toneRepeat', cat: 'sensor', icon: ICONS.tone, color: 'blue', name: '音階排序回溯', brain: '序列聽覺記憶與重排', desc: '試聽琴鍵並將播放的音符排入正確順序，點擊提交計分！', diffDesc: { easy: '2 個音符序列', normal: '3 個音符序列', hard: '4 個音符序列' } },
+  { id: 19, type: 'dualTask', cat: 'classic', icon: ICONS.zen, color: 'purple', name: '左右雙腦分流', brain: '注意力分配', desc: '左面板點擊指定奇偶數，右面板點擊指定顏色，左右開弓！', diffDesc: { easy: '共 10 題，左右選項各 2 個', normal: '共 10 題，左右選項各 2 個', hard: '共 10 題，左邊 3 數字，右邊 3 顏色' } },
+  { id: 20, type: 'ringOverlap', cat: 'sensor', icon: ICONS.ring, color: 'mint', name: '雙色光環精準重疊', brain: '動態空間對齊感知', desc: '當兩枚移動的光環即將完全重合瞬間點擊！重疊時醒目高亮！', diffDesc: { easy: '光環移動緩慢，共 10 輪', normal: '隨機多維移動，共 10 輪', hard: '高速多維移動，共 10 輪' } },
+  { id: 21, type: 'digitAscend', cat: 'classic', icon: ICONS.math, color: 'mint', name: '亂數升序限時點擊', brain: '視覺搜尋速度', desc: '連續 5 輪！中央大字倒數，由小到大快速點擊數字！', diffDesc: { easy: '每輪 5 個數字，限時 12 秒', normal: '每輪 8 個數字，限時 10 秒', hard: '每輪 12 個數字，限時 8 秒' } },
+  { id: 22, type: 'camFingerTrace', cat: 'sensor', icon: ICONS.camRain, color: 'blue', name: 'AI 指尖空中軌跡', brain: '空間連續引導', desc: '鏡頭辨識指尖，跟隨空中移動的光點軌跡飛行！', diffDesc: { easy: '光圈移動緩慢，半徑大', normal: '光圈標準平滑曲線移動', hard: '光圈高速且多重波浪震盪' } },
+  { id: 23, type: 'gyroMaze', cat: 'sensor', icon: ICONS.gyro, color: 'mint', name: '重力微迷宮導航', brain: '前庭微動態操控', desc: '傾斜手機引導小球避開障礙到達終點星標！', diffDesc: { easy: '直行寬敞走廊', normal: '標準折線彎道迷宮', hard: '窄道彎曲且帶有擾動力場' } },
+  { id: 24, type: 'colorWordCount', cat: 'classic', icon: ICONS.search, color: 'orange', name: '色彩出現頻率統計', brain: '多重屬性過濾', desc: '連續 10 題！快速統計畫面上指定顏色色塊的數量！', diffDesc: { easy: '每題 8 顆圓點，10 題', normal: '每題 14 顆圓點，10 題', hard: '每題 22 顆圓點，10 題' } },
+  { id: 25, type: 'mirrorArrow', cat: 'classic', icon: ICONS.arrow, color: 'yellow', name: '鏡像對稱空間', brain: '空間心像旋轉', desc: '依照鏡面反射後的箭頭方向進行點擊作答！正確醒目提示！', diffDesc: { easy: '單純左右水平鏡像，共 10 題', normal: '水平與垂直鏡像隨機，共 10 題', hard: '對角線雙軸旋轉鏡像，共 10 題' } },
+  { id: 26, type: 'patternComplete', cat: 'classic', icon: ICONS.math, color: 'purple', name: '數列邏輯推導', brain: '歸納邏輯推理', desc: '連續解答 10 題規律推導，選出空格中的正確答案！', diffDesc: { easy: '簡單等差數列 (+2, +5)', normal: '等比或階梯差數列 (x2, +3, +5)', hard: '斐波那契或雙重交錯數列' } },
+  { id: 27, type: 'rapidTap', cat: 'relax', icon: ICONS.react, color: 'yellow', name: '十秒極速點擊', brain: '神經高頻發放', desc: '中央大字 10 秒倒數！爆發極限手速！', diffDesc: { easy: '滿分門檻 35 次', normal: '滿分門檻 55 次', hard: '滿分門檻 75 次' } },
+  { id: 28, type: 'symbolPair', cat: 'classic', icon: ICONS.shredder, color: 'mint', name: '瞬間符號配對', brain: '短期符號聯想', desc: '翻開隱藏卡片，快速配對相同形狀的圖騰！', diffDesc: { easy: '4 張卡片 (2 對)', normal: '6 張卡片 (3 對)', hard: '8 張卡片 (4 對) 且牌型相似' } },
+  { id: 29, type: 'memoryFlipMaster', cat: 'classic', icon: ICONS.cardPair, color: 'blue', name: '符號記憶翻牌大師', brain: '視覺空間矩陣記憶', desc: '瞬間記住亮起的符號格位，蓋牌後依序點選還原！', diffDesc: { easy: '3x3 矩陣，記住 3 格', normal: '3x3 矩陣，記住 4 格', hard: '4x4 矩陣，記住 6 格' } },
+  { id: 30, type: 'coreAwaken', cat: 'classic', icon: ICONS.react, color: 'primary', name: '全腦複合運算', brain: '全腦力超頻整合', desc: '連續解答 10 題複合四則運算重啟全腦！', diffDesc: { easy: '雙數字加減運算 (10題)', normal: '三數字連加減混合運算 (10題)', hard: '四數字混合括號乘除 (10題)' } }
+];
+
+(function initSplash() {
+  const fill = document.getElementById('splashBarFill');
+  const pct = document.getElementById('splashPct');
+  const splash = document.getElementById('splash');
+  let p = 0;
+
+  function dismissSplash() {
+    if (splash) {
+      splash.classList.add('hide');
+      setTimeout(() => { if (splash) splash.style.display = 'none'; }, 450);
+    }
+  }
+
+  setTimeout(dismissSplash, 1200);
+
+  const interval = setInterval(() => {
+    p += rand(15, 25);
+    if (p >= 100) { p = 100; clearInterval(interval); }
+    if (fill) fill.style.width = p + '%';
+    if (pct) pct.textContent = p + '%';
+    if (p >= 100) {
+      setTimeout(dismissSplash, 200);
+    }
+  }, 60);
+})();
+
+function setupLogoFallback(imgElement) {
+  if (!imgElement) return;
+  const paths = [
+    'Brain_logo.png',
+    'Brain_logo_2.jpg',
+    'Brain_logo.jpg',
+    '腦動波.jpg',
+    'file:///android_asset/Brain_logo.png'
+  ];
+  let currentAttempt = 0;
+
+  imgElement.onerror = function() {
+    currentAttempt++;
+    if (currentAttempt < paths.length) {
+      imgElement.src = paths[currentAttempt];
+    } else {
+      imgElement.style.display = 'none';
+      if (imgElement.parentElement) {
+        imgElement.parentElement.innerHTML = `
+          <div style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:24px; font-weight:900; color:var(--line);">🧠</div>
+        `;
+      }
+    }
+  };
+}
+
+setupLogoFallback(document.getElementById('splashImg'));
+setupLogoFallback(document.getElementById('headerThumbImg'));
+
+function renderGrid(cat = 'all') {
+  const grid = document.getElementById('gamesGrid');
+  if (!grid) return;
+  const list = cat === 'all' ? ALL_30_GAMES : ALL_30_GAMES.filter(g => g.cat === cat);
+  grid.innerHTML = list.map(g => `
+    <div class="game-card" data-id="${g.id}" style="--card-color:var(--${g.color}); --card-shadow:var(--${g.color}-shadow, var(--line));">
+      <div class="game-icon-bubble">${g.icon}</div>
+      <div class="game-title">${g.name}</div>
+      <div class="game-tag">${g.brain}</div>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.game-card').forEach(c => {
+    c.onclick = () => {
+      sfx.pop();
+      sfx.startBGM();
+      showIntro(parseInt(c.dataset.id));
+    };
+  });
+}
+
+document.querySelectorAll('.tab-pill').forEach(pill => {
+  pill.onclick = () => {
+    sfx.pop();
+    document.querySelectorAll('.tab-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    renderGrid(pill.dataset.filter);
+  };
+});
+renderGrid();
+
+function updateDiffDesc() {
+  if (currentGameData && currentGameData.diffDesc) {
+    const el = document.getElementById('diffDescText');
+    if (el) el.textContent = '難度特性：' + (currentGameData.diffDesc[currentDifficulty] || '');
+  }
+}
+
+function showIntro(id) {
+  const g = ALL_30_GAMES.find(x => x.id === id);
+  if (!g) return;
+  currentGameData = g;
+  document.getElementById('introBrain').textContent = g.brain;
+  document.getElementById('introTitle').textContent = g.name;
+  document.getElementById('introDesc').textContent = g.desc;
+  
+  const diffFull = document.getElementById('diffFullContainer');
+  if (isStoryMode) {
+    if (diffFull) diffFull.style.display = 'none';
+    document.getElementById('diffDescText').textContent = `冒險關卡 ${storyStep}/5：難度動態平衡`;
+  } else {
+    if (diffFull) diffFull.style.display = 'block';
+    updateDiffDesc();
+  }
+  document.getElementById('introModal').classList.add('show');
+}
+
+document.getElementById('cancelIntroBtn').onclick = () => {
+  document.getElementById('introModal').classList.remove('show');
+  isStoryMode = false;
+};
+
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.onclick = () => {
+    sfx.pop();
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentDifficulty = btn.dataset.d;
+    updateDiffDesc();
+  };
+});
+
+document.getElementById('startPlayBtn').onclick = () => {
+  document.getElementById('introModal').classList.remove('show');
+  launchGame(currentGameData);
+};
+
+document.getElementById('storyBtn').onclick = () => {
+  isStoryMode = true;
+  storyStep = 0;
+  currentScore = 0;
+  currentDifficulty = 'normal';
+  sfx.startBGM();
+  sfx.combo();
+  startNextStoryStage();
+};
+
+function startNextStoryStage() {
+  storyStep++;
+  if (storyStep > 5) {
+    return gameOver(currentScore);
+  }
+  const storyPool = ALL_30_GAMES.filter(g => g.cat !== 'relax');
+  const nextGame = pick(storyPool);
+  currentGameData = nextGame;
+  showIntro(nextGame.id);
+}
+
+const stage = document.getElementById('stage');
+const stageInner = document.getElementById('stageInner');
+document.getElementById('quitBtn').onclick = exitGame;
+
+function launchGame(gameData) {
+  clearAllTimers();
+  if (!isStoryMode) {
+    currentScore = 0;
+    updateScore(0);
+    setHudProgress('單項特訓');
+  } else {
+    setHudProgress(`第 ${storyStep}/5 關`);
+    document.getElementById('scoreText').textContent = `${currentScore} 分`;
+  }
+  stage.classList.add('active');
+  stageInner.innerHTML = '';
+  
+  try {
+    if (ENGINES[gameData.type]) {
+      ENGINES[gameData.type](gameData);
+    } else {
+      ENGINES.reactionClick(gameData);
+    }
+  } catch(e) {
+    exitGame();
+  }
+}
+
+function exitGame() {
+  clearAllTimers();
+  stopCamera();
+  window.ondeviceorientation = null;
+  stage.classList.remove('active');
+  stageInner.innerHTML = '';
+  isStoryMode = false;
+}
+
+function gameOver(finalScore) {
+  clearAllTimers();
+  stopCamera();
+  window.ondeviceorientation = null;
+  consecutiveWins += 1;
+  SafeStorage.set('bw_wins_v7', consecutiveWins);
+  updateHeaderStat();
+  sfx.combo();
+
+  const score = Math.max(0, Math.floor(finalScore));
+  let rank = score >= (isStoryMode ? 400 : 85) ? 'S 級超載' : (score >= (isStoryMode ? 320 : 70) ? 'A 級思維' : 'B 級敏捷');
+
+  stageInner.innerHTML = `
+    <div class="result-box">
+      <div style="font-size:14px; color:var(--mint-dark); font-weight:900; background:rgba(72, 202, 155, 0.2); padding:4px 12px; border-radius:12px; display:inline-block;">${rank}</div>
+      <div class="result-score">${score}</div>
+      <button class="bubbly-btn" style="width:100%; padding:14px; background:var(--mint); box-shadow:0 4px 0 var(--mint-dark); color:#FFF; font-size:16px; margin-bottom:8px;" id="replayBtn">${isStoryMode ? '再次闖關' : '再玩一次 (選難度)'}</button>
+      <button class="bubbly-btn" style="width:100%; padding:12px; font-size:14px;" id="homeBtn">回主選單</button>
+    </div>
+  `;
+  document.getElementById('replayBtn').onclick = () => {
+    if (isStoryMode) {
+      storyStep = 0; currentScore = 0; startNextStoryStage();
+    } else {
+      showIntro(currentGameData.id);
+    }
+  };
+  document.getElementById('homeBtn').onclick = exitGame;
+}
+
+let handsModel = null, cameraObj = null;
+function initHands(onResult) {
+  return new Promise(resolve => {
+    try {
+      if (typeof Hands !== 'undefined' && !handsModel) {
+        handsModel = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+        handsModel.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6 });
+      }
+      if (handsModel) handsModel.onResults(onResult);
+      resolve(true);
+    } catch(e) { resolve(false); }
+  });
+}
+function startCamera(videoEl) {
+  return new Promise(resolve => {
+    try {
+      if (typeof Camera !== 'undefined' && videoEl) {
+        cameraObj = new Camera(videoEl, {
+          onFrame: async () => { if (handsModel) await handsModel.send({ image: videoEl }); },
+          width: 320, height: 240
+        });
+        cameraObj.start().then(() => resolve(true)).catch(() => resolve(false));
+      } else resolve(false);
+    } catch(e) { resolve(false); }
+  });
+}
+function stopCamera() {
+  try { if (cameraObj && cameraObj.stop) cameraObj.stop(); } catch(e){}
+  cameraObj = null;
+}
+function classifyHand(lm) {
+  const tips = [4, 8, 12, 16, 20], pips = [3, 6, 10, 14, 18];
+  const ext = tips.map((t, i) => i === 0 ? Math.abs(lm[t].x - lm[0].x) > Math.abs(lm[pips[i]].x - lm[0].x) : lm[t].y < lm[pips[i]].y);
+  if (ext[0] && !ext[1] && !ext[2] && !ext[3] && !ext[4]) return 'thumb';
+  if (ext[1] && ext[2] && !ext[3] && !ext[4]) return 'peace';
+  if (ext[1] && ext[2] && ext[3] && ext[4]) return 'palm';
+  return null;
+}
+
+const ENGINES = {
+  arrow: () => {
+    const currentSession = gameSessionId;
+    const rounds = 10;
+    const sameRate = currentDifficulty === 'hard' ? 0.25 : (currentDifficulty === 'normal' ? 0.5 : 0.7);
+    let cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+      const isLeft = Math.random() > 0.5;
+      const isSame = Math.random() < sameRate;
+
+      stageInner.innerHTML = `
+        <div class="hero-display" style="font-size:26px; color:${isSame ? 'var(--mint-dark)' : 'var(--primary)'}; margin-bottom:8px;">
+          ${isSame ? '【 同方向信號 】' : '【 逆向信號 】'}
+        </div>
+        <div class="prompt-title">${isSame ? '依照箭頭指向點擊' : '點擊相反方向'}</div>
+        <div style="margin:20px 0; transform:${isLeft ? 'scaleX(-1)' : 'scaleX(1)'}; color:${isSame ? 'var(--mint)' : 'var(--primary)'};">
+          <svg width="74" height="74" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
+        <div style="display:flex; gap:16px;">
+          <button class="bubbly-btn" id="lBtn" style="padding:16px 28px; font-size:18px;">左</button>
+          <button class="bubbly-btn" id="rBtn" style="padding:16px 28px; font-size:18px;">右</button>
+        </div>
+      `;
+
+      function check(side) {
+        const correct = isSame ? (isLeft ? 'left' : 'right') : (isLeft ? 'right' : 'left');
+        if (side === correct) {
+          gainedScore = Math.min(100, gainedScore + 10);
+          sfx.hit();
+        } else sfx.fail();
+        updateScore(initialBase + gainedScore);
+        next();
+      }
+      document.getElementById('lBtn').onclick = () => check('left');
+      document.getElementById('rBtn').onclick = () => check('right');
+    }
+    next();
+  },
+
+  stroop: () => {
+    const currentSession = gameSessionId;
+    let COLORS = [
+      { name: '紅', hex: '#FF5C7A' },
+      { name: '藍', hex: '#70B8FF' },
+      { name: '綠', hex: '#48CA9B' },
+      { name: '黃', hex: '#FFD670' },
+    ];
+    if (currentDifficulty === 'hard') {
+      COLORS.push({ name: '紫', hex: '#B28DFF' }, { name: '橙', hex: '#FF9770' });
+    }
+    let timeLeft = currentDifficulty === 'hard' ? 18 : (currentDifficulty === 'normal' ? 25 : 35);
+    let gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    const interval = setInterval(() => {
+      if (gameSessionId !== currentSession) {
+        clearInterval(interval);
+        return;
+      }
+      timeLeft--;
+      const badge = document.getElementById('bigTimerBadge');
+      if (badge) badge.textContent = `⏱️ ${timeLeft} 秒`;
+      if (timeLeft <= 0) {
+        clearInterval(interval);
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+      }
+    }, 1000);
+    timers.push({ clear: () => clearInterval(interval) });
+
+    function renderQuestion() {
+      if (gameSessionId !== currentSession) return;
+      const text = pick(COLORS);
+      const color = pick(COLORS);
+      stageInner.innerHTML = `
+        <div class="center-countdown-badge active" id="bigTimerBadge">⏱️ ${timeLeft} 秒</div>
+        <div class="prompt-title">點選文字「顯示的顏色」，不要看字義！</div>
+        <div class="hero-display" style="color:${color.hex}; font-size:52px;">${text.name}</div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; max-width:280px;">
+          ${COLORS.map(c => `
+            <button class="bubbly-btn" data-n="${c.name}" style="padding:12px 20px; font-size:18px;">${c.name}</button>
+          `).join('')}
+        </div>
+      `;
+      stageInner.querySelectorAll('.bubbly-btn').forEach(b => {
+        b.onclick = () => {
+          if (b.dataset.n === color.name) {
+            gainedScore = Math.min(100, gainedScore + 10);
+            sfx.hit();
+          } else {
+            gainedScore = Math.max(0, gainedScore - 5);
+            sfx.fail();
+          }
+          updateScore(initialBase + gainedScore);
+          renderQuestion();
+        };
+      });
+    }
+    renderQuestion();
+  },
+
+  math: () => {
+    const currentSession = gameSessionId;
+    let rounds = 10, cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+
+      let a, b, op, ans;
+      if (currentDifficulty === 'easy') {
+        a = rand(1, 9); b = rand(1, 9); op = '+'; ans = a + b;
+      } else if (currentDifficulty === 'normal') {
+        a = rand(5, 20); b = rand(2, 15); const isAdd = Math.random() > 0.4;
+        op = isAdd ? '+' : '-'; ans = isAdd ? a + b : a - b;
+      } else {
+        const type = rand(1, 3);
+        if (type === 1) { a = rand(15, 60); b = rand(10, 40); op = '+'; ans = a + b; }
+        else if (type === 2) { a = rand(20, 80); b = rand(15, 40); op = '-'; ans = a - b; }
+        else { a = rand(3, 9); b = rand(3, 9); op = '×'; ans = a * b; }
+      }
+      let currentVal = '';
+
+      stageInner.innerHTML = `
+        <div class="prompt-title">第 ${cur} / ${rounds} 題：</div>
+        <div class="math-display-box">${a} ${op} ${b} = <span style="color:var(--primary);" id="mInput">?</span></div>
+        <div class="numpad">
+          ${[1,2,3,4,5,6,7,8,9,'C',0,'-'].map(k => `
+            <button class="bubbly-btn num-key" data-k="${k}">${k}</button>
+          `).join('')}
+        </div>
+      `;
+
+      const inputDisplay = document.getElementById('mInput');
+      stageInner.querySelectorAll('.num-key').forEach(btn => {
+        btn.onclick = () => {
+          const k = btn.dataset.k;
+          if (k === 'C') currentVal = '';
+          else currentVal += k;
+          
+          if (inputDisplay) inputDisplay.textContent = currentVal || '?';
+          sfx.pop();
+
+          if (parseInt(currentVal) === ans) {
+            gainedScore += 10;
+            updateScore(initialBase + gainedScore);
+            sfx.hit();
+            setTimeout(next, 200);
+          } else if (currentVal.length >= ans.toString().length && currentVal !== '-') {
+            sfx.fail();
+            currentVal = '';
+            if (inputDisplay) inputDisplay.textContent = '?';
+          }
+        };
+      });
+    }
+    next();
+  },
+
+  camRain: () => {
+    const currentSession = gameSessionId;
+    stageInner.innerHTML = `
+      <video id="camFeed" autoplay playsinline muted></video>
+      <canvas id="camCanvas"></canvas>
+      <div class="cam-overlay">
+        <div class="prompt-title" style="background:rgba(255,255,255,0.85); padding:6px 14px; border-radius:12px; border:2px solid var(--line); margin-top:10px;">
+          用「食指指尖」在空中觸摸掉落的光譜水滴！
+        </div>
+      </div>
+    `;
+
+    const video = document.getElementById('camFeed');
+    const canvas = document.getElementById('camCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let drops = [], processed = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+    const totalDrops = currentDifficulty === 'hard' ? 15 : 10;
+    const speed = currentDifficulty === 'hard' ? 3.8 : (currentDifficulty === 'normal' ? 2.5 : 1.8);
+    const spawnRate = currentDifficulty === 'hard' ? 900 : 1300;
+    const pentatonic = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
+
+    canvas.width = stageInner.clientWidth || 320;
+    canvas.height = stageInner.clientHeight || 480;
+
+    function spawnDrop() {
+      if (gameSessionId !== currentSession) return;
+      if (processed + drops.length >= totalDrops) return;
+      drops.push({
+        x: rand(50, canvas.width - 50),
+        y: -30,
+        r: 22,
+        freq: pick(pentatonic),
+        color: pick(['#FF70A6', '#70B8FF', '#48CA9B', '#FFD670', '#B28DFF'])
+      });
+    }
+    const spawner = setInterval(spawnDrop, spawnRate);
+    timers.push({ clear: () => clearInterval(spawner) });
+
+    let fingerPos = null;
+    initHands(results => {
+      if (gameSessionId !== currentSession) return;
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
+        const lm = results.multiHandLandmarks[0];
+        fingerPos = { x: (1 - lm[8].x) * canvas.width, y: lm[8].y * canvas.height };
+      } else fingerPos = null;
+    }).then(() => {
+      if (video) startCamera(video);
+    });
+
+    stageInner.onpointermove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      fingerPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+
+    function renderLoop() {
+      if (gameSessionId !== currentSession) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drops.forEach((d, idx) => {
+        d.y += speed;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fillStyle = d.color;
+        ctx.strokeStyle = '#2D3748';
+        ctx.lineWidth = 3;
+        ctx.fill();
+        ctx.stroke();
+
+        if (fingerPos && Math.hypot(d.x - fingerPos.x, d.y - fingerPos.y) < d.r + 20) {
+          sfx.zen(d.freq);
+          gainedScore = Math.min(100, gainedScore + Math.ceil(100 / totalDrops));
+          updateScore(initialBase + gainedScore);
+          drops.splice(idx, 1);
+          processed++;
+          setHudProgress(`${processed}/${totalDrops}`);
+          if (processed >= totalDrops) {
+            if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+          }
+        } else if (d.y > canvas.height + 30) {
+          drops.splice(idx, 1);
+          processed++;
+          setHudProgress(`${processed}/${totalDrops}`);
+          if (processed >= totalDrops) {
+            if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+          }
+        }
+      });
+
+      if (fingerPos) {
+        ctx.beginPath();
+        ctx.arc(fingerPos.x, fingerPos.y, 12, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 112, 166, 0.85)';
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2.5;
+        ctx.fill();
+        ctx.stroke();
+      }
+      animFrame = requestAnimationFrame(renderLoop);
+    }
+    renderLoop();
+  },
+
+  gyro: () => {
+    const currentSession = gameSessionId;
+    const targetRadius = currentDifficulty === 'hard' ? 24 : (currentDifficulty === 'normal' ? 38 : 50);
+    stageInner.innerHTML = `
+      <div class="center-countdown-badge active" id="bigTimerBadge">⏱️ 10 秒</div>
+      <div class="prompt-title">傾斜手機，將球維持在綠色重力圈內！</div>
+      <div class="gyro-arena" id="arena">
+        <div class="gyro-target" style="width:${targetRadius*2}px; height:${targetRadius*2}px;"></div>
+        <div class="gyro-ball" id="ball"></div>
+      </div>
+    `;
+    const ball = document.getElementById('ball');
+    let x = 0, y = 0, vx = 0, vy = 0, timeLeft = 100, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+    const sens = currentDifficulty === 'hard' ? 0.05 : 0.035;
+
+    function onOrient(e) {
+      if (gameSessionId !== currentSession) return;
+      vx += (e.gamma || 0) * sens;
+      vy += ((e.beta || 45) - 45) * sens;
+    }
+    window.addEventListener('deviceorientation', onOrient);
+
+    const arena = document.getElementById('arena');
+    if (arena) {
+      arena.onpointermove = (e) => {
+        const rect = arena.getBoundingClientRect();
+        vx += (e.clientX - (rect.left + rect.width/2)) * 0.025;
+        vy += (e.clientY - (rect.top + rect.height/2)) * 0.025;
+      };
+    }
+
+    let tickCount = 0;
+    const interval = setInterval(() => {
+      if (gameSessionId !== currentSession) {
+        clearInterval(interval);
+        return;
+      }
+      timeLeft--;
+      tickCount++;
+      const badge = document.getElementById('bigTimerBadge');
+      if (badge) badge.textContent = `⏱️ ${Math.ceil(timeLeft/10)} 秒`;
+      if (tickCount % 5 === 0) {
+        if (Math.hypot(x, y) < targetRadius) {
+          gainedScore = Math.min(100, gainedScore + 5);
+          updateScore(initialBase + gainedScore);
+        }
+      }
+      if (timeLeft <= 0) {
+        clearInterval(interval);
+        window.removeEventListener('deviceorientation', onOrient);
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+      }
+    }, 100);
+    timers.push({ clear: () => clearInterval(interval) });
+
+    function tick() {
+      if (gameSessionId !== currentSession) return;
+      x += vx; y += vy;
+      vx *= 0.92; vy *= 0.92;
+      const d = Math.hypot(x, y);
+      if (d > 100) {
+        const a = Math.atan2(y, x);
+        x = Math.cos(a) * 100; y = Math.sin(a) * 100;
+      }
+      if (ball) ball.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+      animFrame = requestAnimationFrame(tick);
+    }
+    tick();
+  },
+
+  drawCombined: () => {
+    const currentSession = gameSessionId;
+    const SHAPES = [
+      { id: 'circle', name: '正圓形' },
+      { id: 'square', name: '正方形' },
+      { id: 'triangle', name: '等邊三角形' },
+      { id: 'star', name: '五角星' }
+    ];
+    const target = pick(SHAPES);
+
+    stageInner.innerHTML = `
+      <div class="prompt-title">繪製封印：<b style="color:var(--primary); font-size:18px;">${target.name}</b></div>
+      <div class="draw-box"><canvas id="dCanvas" width="240" height="240"></canvas></div>
+      <button class="bubbly-btn" id="dEval" style="margin-top:18px; padding:12px 28px; background:var(--mint); color:#FFF; box-shadow:0 4px 0 var(--mint-dark);">評定精確度</button>
+    `;
+
+    const cvs = document.getElementById('dCanvas');
+    if (!cvs) return;
+    const ctx = cvs.getContext('2d');
+    let pts = [], drawing = false;
+    ctx.strokeStyle = '#FF70A6'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+
+    function getCoords(e) {
+      const rect = cvs.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: (clientX - rect.left) * (cvs.width / rect.width),
+        y: (clientY - rect.top) * (cvs.height / rect.height)
+      };
+    }
+
+    function handleStart(e) {
+      if (gameSessionId !== currentSession) return;
+      e.preventDefault();
+      drawing = true;
+      pts = [];
+      ctx.clearRect(0, 0, cvs.width, cvs.height);
+      const pos = getCoords(e);
+      pts.push(pos);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    }
+
+    function handleMove(e) {
+      if (gameSessionId !== currentSession || !drawing) return;
+      e.preventDefault();
+      const pos = getCoords(e);
+      pts.push(pos);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+    }
+
+    function handleEnd(e) {
+      if (gameSessionId !== currentSession) return;
+      e.preventDefault();
+      drawing = false;
+    }
+
+    cvs.addEventListener('touchstart', handleStart, { passive: false });
+    cvs.addEventListener('touchmove', handleMove, { passive: false });
+    cvs.addEventListener('touchend', handleEnd, { passive: false });
+
+    cvs.addEventListener('mousedown', handleStart);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    document.getElementById('dEval').onclick = () => {
+      if (gameSessionId !== currentSession) return;
+      if (pts.length < 15) return;
+      let minX = 999, maxX = -999, minY = 999, maxY = -999, ax = 0, ay = 0;
+      pts.forEach(p => {
+        ax += p.x; ay += p.y;
+        minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+      });
+      ax /= pts.length; ay /= pts.length;
+      const aspect = Math.min(maxX - minX, maxY - minY) / Math.max(maxX - minX, maxY - minY);
+
+      let calcScore = 0;
+      if (target.id === 'circle') {
+        const rads = pts.map(p => Math.hypot(p.x - ax, p.y - ay));
+        const avgR = rads.reduce((a,b)=>a+b,0)/rads.length;
+        const variance = rads.reduce((a,b)=>a + Math.pow(b - avgR, 2), 0) / rads.length;
+        const penalty = currentDifficulty === 'hard' ? 4.8 : (currentDifficulty === 'normal' ? 3.4 : 2.2);
+        calcScore = Math.min(100, Math.max(20, Math.floor(100 - Math.sqrt(variance) * penalty)));
+      } else if (target.id === 'square') {
+        const penalty = currentDifficulty === 'hard' ? 95 : 85;
+        calcScore = Math.min(100, Math.max(20, Math.floor(aspect * penalty)));
+      } else {
+        calcScore = currentDifficulty === 'hard' ? rand(55, 82) : rand(70, 95);
+      }
+
+      const initialBase = isStoryMode ? currentScore : 0;
+      updateScore(initialBase + calcScore);
+      if (isStoryMode) startNextStoryStage(); else gameOver(calcScore);
+    };
+  },
+
+  toneHighLow: () => {
+    const currentSession = gameSessionId;
+    const rounds = 10;
+    const delta = currentDifficulty === 'hard' ? rand(15, 25) : (currentDifficulty === 'normal' ? rand(35, 55) : rand(70, 95));
+    let cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+      stageInner.innerHTML = `
+        <div class="prompt-title">聆聽兩段音訊，第二聲較高還是較低？</div>
+        <div style="display:flex; gap:14px; margin-top:20px;">
+          <button class="bubbly-btn" id="tLow" style="padding:18px 28px; font-size:18px; background:var(--blue); color:#FFF; box-shadow:0 4px 0 var(--blue-shadow);">低音 ▼</button>
+          <button class="bubbly-btn" id="tHigh" style="padding:18px 28px; font-size:18px; background:var(--primary); color:#FFF; box-shadow:0 4px 0 var(--primary-shadow);">高音 ▲</button>
+        </div>
+      `;
+      const base = rand(300, 600);
+      const isHigher = Math.random() > 0.5;
+      const target = isHigher ? base + delta : base - delta;
+
+      sfx.playSFX(base, 'sine', 0.25);
+      setTimeout(() => {
+        if (gameSessionId === currentSession) sfx.playSFX(target, 'sine', 0.25);
+      }, 450);
+
+      function check(ans) {
+        if (gameSessionId !== currentSession) return;
+        if (ans === isHigher) {
+          gainedScore = Math.min(100, gainedScore + 10);
+          updateScore(initialBase + gainedScore);
+          sfx.hit();
+        } else sfx.fail();
+        setTimeout(next, 300);
+      }
+      document.getElementById('tLow').onclick = () => check(false);
+      document.getElementById('tHigh').onclick = () => check(true);
+    }
+    next();
+  },
+
+  primeSlice: () => {
+    const currentSession = gameSessionId;
+    let PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29];
+    let COMPS = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18];
+    let queue = shuffle([...PRIMES, ...COMPS]);
+    const totalCount = queue.length;
+    const speed = currentDifficulty === 'hard' ? 3.4 : (currentDifficulty === 'normal' ? 2.4 : 1.8);
+    let processed = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    const lane = document.createElement('div');
+    lane.style.cssText = 'width:100%; height:100%; position:relative; touch-action:none;';
+    stageInner.innerHTML = '';
+    stageInner.appendChild(lane);
+    let items = [];
+
+    function spawnNext() {
+      if (gameSessionId !== currentSession) return;
+      if (queue.length === 0) return;
+      const n = queue.pop();
+      const el = document.createElement('div');
+      el.style.cssText = 'position:absolute; width:56px; height:56px; display:flex; align-items:center; justify-content:center; top:-60px;';
+      const fruitSvg = pick(FRUITS_SVGS);
+      el.innerHTML = `
+        ${fruitSvg}
+        <span style="position:absolute; bottom:-6px; background:#FFF; border:2px solid #2D3748; border-radius:8px; padding:0 6px; font-size:13px; font-family:var(--font-mono); font-weight:800;">${n}</span>
+      `;
+      el.style.left = rand(15, 75) + '%';
+      lane.appendChild(el);
+      items.push({ el, n, y: -60, cut: false });
+    }
+
+    const spawner = setInterval(() => {
+      spawnNext();
+      if (queue.length === 0) clearInterval(spawner);
+    }, currentDifficulty === 'hard' ? 850 : 1100);
+    timers.push({ clear: () => clearInterval(spawner) });
+
+    function handleSliceAt(clientX, clientY) {
+      if (gameSessionId !== currentSession) return;
+      const rect = lane.getBoundingClientRect();
+      const px = clientX - rect.left, py = clientY - rect.top;
+      items.forEach(item => {
+        if (item.cut) return;
+        const r = item.el.getBoundingClientRect();
+        if (Math.hypot(px - (r.left - rect.left + 28), py - (r.top - rect.top + 28)) < 38) {
+          item.cut = true;
+          item.el.remove();
+          processed++;
+          setHudProgress(`${processed}/${totalCount}`);
+          if (isPrime(item.n)) {
+            gainedScore = Math.min(100, gainedScore + 10);
+            sfx.hit();
+          } else {
+            gainedScore = Math.max(0, gainedScore - 8);
+            sfx.fail();
+          }
+          updateScore(initialBase + gainedScore);
+          if (processed >= totalCount) {
+            if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+          }
+        }
+      });
+    }
+
+    lane.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      handleSliceAt(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+    lane.addEventListener('mousemove', (e) => handleSliceAt(e.clientX, e.clientY));
+
+    function tick() {
+      if (gameSessionId !== currentSession) return;
+      items.forEach(item => {
+        if (item.cut) return;
+        item.y += speed;
+        item.el.style.top = item.y + 'px';
+        if (item.y > lane.clientHeight - 60) {
+          item.cut = true;
+          item.el.remove();
+          processed++;
+          setHudProgress(`${processed}/${totalCount}`);
+          if (processed >= totalCount) {
+            if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+          }
+        }
+      });
+      if (processed < totalCount) animFrame = requestAnimationFrame(tick);
+    }
+    tick();
+  },
+
+  nback1: () => {
+    const currentSession = gameSessionId;
+    const N = currentDifficulty === 'hard' ? 2 : 1;
+    const tempo = currentDifficulty === 'hard' ? 450 : (currentDifficulty === 'normal' ? 550 : 700);
+    let seq = [], round = 0, total = 10, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+    setHudProgress(`0/${total}`);
+
+    stageInner.innerHTML = `
+      <div class="prompt-title">記住順序，點擊「前 ${N} 次」亮起的格子！</div>
+      <div style="display:grid; grid-template-columns:repeat(3,70px); gap:10px;" id="nGrid">
+        ${[0,1,2,3,4,5,6,7,8].map(i => `<div class="bubbly-btn" data-i="${i}" style="height:70px; border-radius:16px;"></div>`).join('')}
+      </div>
+    `;
+    const cells = stageInner.querySelectorAll('#nGrid div');
+    
+    function playNext() {
+      if (gameSessionId !== currentSession) return;
+      if (round >= total) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      setHudProgress(`${round + 1}/${total}`);
+      const nextIdx = rand(0, 8);
+      seq.push(nextIdx);
+      if (cells[nextIdx]) cells[nextIdx].style.background = 'var(--yellow)';
+
+      setTimeout(() => {
+        if (gameSessionId !== currentSession) return;
+        if (cells[nextIdx]) cells[nextIdx].style.background = 'var(--panel)';
+        if (round >= N) {
+          let answered = false;
+          cells.forEach(c => {
+            c.onclick = () => {
+              if (gameSessionId !== currentSession || answered) return;
+              answered = true;
+              if (parseInt(c.dataset.i) === seq[seq.length - 1 - N]) {
+                gainedScore += 10;
+                sfx.hit();
+              } else sfx.fail();
+              updateScore(initialBase + gainedScore);
+              round++;
+              playNext();
+            };
+          });
+        } else {
+          round++;
+          setTimeout(playNext, 400);
+        }
+      }, tempo);
+    }
+    playNext();
+  },
+
+  colorFusion: () => {
+    const currentSession = gameSessionId;
+    let MIXES = [
+      { a: '#FFD670', b: '#70B8FF', res: '#48CA9B' },
+      { a: '#FF70A6', b: '#FFD670', res: '#FF9770' },
+      { a: '#FF70A6', b: '#70B8FF', res: '#B28DFF' },
+      { a: '#48CA9B', b: '#70B8FF', res: '#06B6D4' },
+      { a: '#FF70A6', b: '#B28DFF', res: '#D946EF' },
+      { a: '#FF9770', b: '#FFD670', res: '#F59E0B' }
+    ];
+    let rounds = 10, cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+      const m = pick(MIXES);
+
+      stageInner.innerHTML = `
+        <div class="prompt-title">兩色水滴融合後的顏色是？</div>
+        <div id="dropsWrap" style="display:flex; gap:18px; margin:20px 0; transition:all 0.3s;">
+          <div style="width:54px; height:54px; border-radius:50%; background:${m.a}; border:3px solid var(--line); box-shadow:0 4px 0 rgba(0,0,0,0.15);"></div>
+          <div style="width:54px; height:54px; border-radius:50%; background:${m.b}; border:3px solid var(--line); box-shadow:0 4px 0 rgba(0,0,0,0.15);"></div>
+        </div>
+        <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center; max-width:280px;" id="choicesWrap">
+          ${shuffle(MIXES).map(opt => `
+            <button class="bubbly-btn fusion-choice" data-c="${opt.res}" style="width:54px; height:54px; border-radius:18px; background:${opt.res};"></button>
+          `).join('')}
+        </div>
+      `;
+
+      const dropsWrap = document.getElementById('dropsWrap');
+
+      stageInner.querySelectorAll('.fusion-choice').forEach(b => {
+        b.onclick = () => {
+          if (gameSessionId !== currentSession) return;
+          if (b.dataset.c === m.res) {
+            if (dropsWrap) dropsWrap.classList.add('fusion-ok');
+            b.style.boxShadow = '0 0 16px 4px var(--mint)';
+            gainedScore += 10;
+            sfx.hit();
+          } else {
+            if (dropsWrap) dropsWrap.classList.add('fusion-fail');
+            b.style.boxShadow = '0 0 16px 4px var(--primary)';
+            sfx.fail();
+          }
+          updateScore(initialBase + gainedScore);
+          setTimeout(next, 450);
+        };
+      });
+    }
+    next();
+  },
+
+  shredderMem: () => {
+    const currentSession = gameSessionId;
+    const len = currentDifficulty === 'hard' ? 5 : (currentDifficulty === 'normal' ? 4 : 3);
+    const flashTime = currentDifficulty === 'hard' ? 400 : (currentDifficulty === 'normal' ? 650 : 900);
+    let rounds = 10, cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+      const min = Math.pow(10, len - 1), max = Math.pow(10, len) - 1;
+      const num = rand(min, max).toString();
+
+      stageInner.innerHTML = `
+        <div class="prompt-title">記住瞬間閃過的數字！</div>
+        <div class="hero-display" style="letter-spacing:6px; font-family:var(--font-mono);">${num}</div>
+      `;
+
+      setTimeout(() => {
+        if (gameSessionId !== currentSession) return;
+        const opts = shuffle([num, (parseInt(num)+rand(1,15)).toString(), (parseInt(num)-rand(1,15)).toString()]);
+        stageInner.innerHTML = `
+          <div class="prompt-title">剛才出現的數字是？</div>
+          <div style="display:flex; flex-direction:column; gap:10px; width:220px;">
+            ${opts.map(opt => `
+              <button class="bubbly-btn" data-v="${opt}" style="padding:14px; font-size:18px; font-family:var(--font-mono);">${opt}</button>
+            `).join('')}
+          </div>
+        `;
+        stageInner.querySelectorAll('.bubbly-btn').forEach(b => {
+          b.onclick = () => {
+            if (gameSessionId !== currentSession) return;
+            if (b.dataset.v === num) {
+              gainedScore += 10;
+              sfx.hit();
+            } else sfx.fail();
+            updateScore(initialBase + gainedScore);
+            setTimeout(next, 300);
+          };
+        });
+      }, flashTime);
+    }
+    next();
+  },
+
+  gestureAI: () => {
+    const currentSession = gameSessionId;
+    const rounds = 10;
+    let cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+    const GESTS = [{ key: 'thumb', label: '大拇指 (讚)' }, { key: 'peace', label: '剪刀手 (YA)' }, { key: 'palm', label: '張開手掌 (布)' }];
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+      const target = pick(GESTS);
+      stageInner.innerHTML = `
+        <div class="prompt-title">比出手勢通過驗證：</div>
+        <div class="hero-display" style="font-size:28px; color:var(--primary);">${target.label}</div>
+        <video id="gestureVideo" autoplay playsinline muted style="width:180px; height:135px; border-radius:16px; border:2.5px solid var(--line); object-fit:cover; transform:scaleX(-1); box-shadow:0 4px 0 var(--line); margin-bottom:10px;"></video>
+        <div id="gStatus" style="font-size:13px; font-weight:700; color:var(--subtext);">啟動鏡頭辨識中...</div>
+      `;
+      const video = document.getElementById('gestureVideo');
+      const status = document.getElementById('gStatus');
+      let solved = false;
+
+      initHands(results => {
+        if (gameSessionId !== currentSession || solved) return;
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
+          const g = classifyHand(results.multiHandLandmarks[0]);
+          const match = GESTS.find(x => x.key === g);
+          if (status) status.textContent = match ? `偵測到：${match.label}` : '辨識中...請將手置於畫面中央';
+          if (g === target.key) {
+            solved = true;
+            gainedScore += 10;
+            updateScore(initialBase + gainedScore);
+            sfx.hit();
+            setTimeout(next, 500);
+          }
+        }
+      }).then(() => {
+        if (video) startCamera(video);
+      });
+    }
+    next();
+  },
+
+  bubbleRelax: () => {
+    const currentSession = gameSessionId;
+    const waves = currentDifficulty === 'hard' ? 7 : (currentDifficulty === 'normal' ? 5 : 3);
+    let curWave = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    function nextWave() {
+      if (gameSessionId !== currentSession) return;
+      if (curWave >= waves) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      curWave++;
+      setHudProgress(`第 ${curWave}/${waves} 波`);
+      const totalInWave = 12;
+      let popped = 0;
+
+      stageInner.innerHTML = `
+        <div class="prompt-title">第 ${curWave} 波：捏爆幾何造型氣泡！</div>
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; width:260px;" id="bGrid">
+          ${Array(totalInWave).fill(0).map(() => `
+            <button class="bubbly-btn bubble-btn" style="width:52px; height:52px; background:var(--blue); ${pick(BUBBLE_SHAPES)}"></button>
+          `).join('')}
+        </div>
+      `;
+
+      stageInner.querySelectorAll('.bubble-btn').forEach(b => {
+        b.onclick = () => {
+          if (gameSessionId !== currentSession) return;
+          if (!b.style.opacity) {
+            b.style.opacity = '0.2';
+            b.style.transform = 'scale(0.85)';
+            sfx.pop();
+            popped++;
+            if (popped >= totalInWave) {
+              gainedScore += Math.floor(100 / waves);
+              updateScore(initialBase + gainedScore);
+              setTimeout(nextWave, 250);
+            }
+          }
+        };
+      });
+    }
+    nextWave();
+  },
+
+  rhythmPiano: () => {
+    const currentSession = gameSessionId;
+    stageInner.innerHTML = `
+      <div class="prompt-title">鋼琴塊下落！長按音符需按到底，太早放開 Miss！</div>
+      <div class="rhythm-stage" id="rStage" style="width:240px; height:320px; background:#FFF; border:3px solid var(--line); border-radius:20px; position:relative; overflow:hidden;">
+        <div style="position:absolute; bottom:24px; left:0; right:0; height:50px; border-top:2.5px dashed var(--line); border-bottom:2.5px dashed var(--line); background:rgba(72,202,155,0.2); display:flex; align-items:center; justify-content:center;">
+          <div style="width:52px; height:42px; border-radius:12px; border:2px solid var(--line); background:#FFF;"></div>
+        </div>
+      </div>
+      <button class="bubbly-btn" id="hitBtn" style="margin-top:14px; padding:14px 48px; font-size:18px; background:var(--yellow); box-shadow:0 4px 0 var(--yellow-shadow);">TAP / HOLD</button>
+    `;
+
+    const rStage = document.getElementById('rStage');
+    let notes = [], noteCount = 12, finished = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+    let baseSpeed = currentDifficulty === 'hard' ? 3.0 : 2.0;
+
+    function spawnNote() {
+      if (gameSessionId !== currentSession) return;
+      if (noteCount <= 0) return;
+      noteCount--;
+      const isLong = Math.random() > 0.65;
+      const height = isLong ? 90 : 44;
+      const el = document.createElement('div');
+      el.style.cssText = `position:absolute; left:94px; top:-${height}px; width:52px; height:${height}px; border-radius:14px; background:${isLong ? 'var(--purple)' : 'var(--primary)'}; border:2.5px solid var(--line); box-shadow:0 3px 0 rgba(0,0,0,0.15); overflow:hidden;`;
+      if (isLong) {
+        el.innerHTML = `<div class="hold-fill" style="width:100%; height:0%; background:var(--mint); transition:height 0.1s linear;"></div>`;
+      }
+      if (rStage) rStage.appendChild(el);
+      notes.push({ el, y: -height, height, isLong, holding: false, hit: false });
+    }
+    const spawner = setInterval(spawnNote, 1100);
+    timers.push({ clear: () => clearInterval(spawner) });
+
+    const hitBtn = document.getElementById('hitBtn');
+    let activeHoldNote = null;
+
+    if (hitBtn) {
+      hitBtn.onpointerdown = () => {
+        if (gameSessionId !== currentSession) return;
+        const targetY = 246;
+        let closest = null, minDiff = 999;
+        notes.forEach(n => {
+          if (n.hit) return;
+          const diff = Math.abs((n.y + n.height/2) - targetY);
+          if (diff < minDiff) { minDiff = diff; closest = n; }
+        });
+
+        if (closest && minDiff < 45) {
+          if (closest.isLong) {
+            closest.holding = true;
+            activeHoldNote = closest;
+            closest.el.style.boxShadow = '0 0 16px 4px var(--mint)';
+            sfx.zen(440);
+          } else {
+            closest.hit = true;
+            closest.el.remove();
+            finished++;
+            gainedScore = Math.min(100, gainedScore + 10);
+            updateScore(initialBase + gainedScore);
+            sfx.hit();
+            if (finished >= 12) {
+              if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+            }
+          }
+        }
+      };
+
+      hitBtn.onpointerup = () => {
+        if (gameSessionId !== currentSession) return;
+        if (activeHoldNote && activeHoldNote.holding) {
+          activeHoldNote.holding = false;
+          if (activeHoldNote.y + activeHoldNote.height >= 246) {
+            activeHoldNote.hit = true;
+            activeHoldNote.el.remove();
+            finished++;
+            gainedScore = Math.min(100, gainedScore + 12);
+            updateScore(initialBase + gainedScore);
+            sfx.combo();
+          } else {
+            activeHoldNote.hit = true;
+            activeHoldNote.el.remove();
+            finished++;
+            gainedScore = Math.max(0, gainedScore - 8);
+            updateScore(initialBase + gainedScore);
+            sfx.fail();
+          }
+          activeHoldNote = null;
+          if (finished >= 12) {
+            if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+          }
+        }
+      };
+    }
+
+    function tick() {
+      if (gameSessionId !== currentSession) return;
+      baseSpeed += 0.002;
+      notes.forEach(n => {
+        if (n.hit) return;
+        n.y += baseSpeed;
+        n.el.style.top = n.y + 'px';
+
+        if (n.holding && n.isLong) {
+          const fill = n.el.querySelector('.hold-fill');
+          if (fill) fill.style.height = '100%';
+        }
+
+        if (n.y > 310) {
+          n.hit = true;
+          n.el.remove();
+          finished++;
+          gainedScore = Math.max(0, gainedScore - 8);
+          updateScore(initialBase + gainedScore);
+          sfx.fail();
+          if (finished >= 12) {
+            if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+          }
+        }
+      });
+      if (finished < 12) animFrame = requestAnimationFrame(tick);
+    }
+    tick();
+  },
+
+  oddOneOut: () => {
+    const currentSession = gameSessionId;
+    const gridDim = currentDifficulty === 'hard' ? 4 : (currentDifficulty === 'normal' ? 3 : 2);
+    const count = gridDim * gridDim;
+    let rounds = 10, cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+      const oddIdx = rand(0, count - 1);
+      const size = gridDim === 4 ? '52px' : '70px';
+
+      stageInner.innerHTML = `
+        <div class="prompt-title">快速點出旋轉方向不同的異類符號！</div>
+        <div style="display:grid; grid-template-columns:repeat(${gridDim},${size}); gap:10px;">
+          ${Array(count).fill(0).map((_, i) => `
+            <button class="bubbly-btn odd-btn" data-i="${i}" style="height:${size}; font-size:22px;">
+              <span style="display:inline-block; transform:rotate(${i === oddIdx ? '90deg' : '0deg'});">▲</span>
+            </button>
+          `).join('')}
+        </div>
+      `;
+      stageInner.querySelectorAll('.odd-btn').forEach(b => {
+        b.onclick = () => {
+          if (gameSessionId !== currentSession) return;
+          if (parseInt(b.dataset.i) === oddIdx) {
+            gainedScore += 10;
+            sfx.hit();
+          } else sfx.fail();
+          updateScore(initialBase + gainedScore);
+          next();
+        };
+      });
+    }
+    next();
+  },
+
+  reactionClick: () => {
+    const currentSession = gameSessionId;
+    stageInner.innerHTML = `
+      <div class="center-countdown-badge active" style="color:var(--text); font-size:20px;">保持專注</div>
+      <div class="prompt-title">當紅色方塊變綠的瞬間立刻點擊！</div>
+      <div id="reactBox" style="width:220px; height:220px; border-radius:28px; background:var(--primary); border:3px solid var(--line); box-shadow:0 6px 0 var(--line); display:flex; align-items:center; justify-content:center; color:#FFF; font-size:22px; font-weight:900; cursor:pointer;">等待變綠...</div>
+    `;
+    const box = document.getElementById('reactBox');
+    let startT = 0, ready = false;
+    const delay = rand(1500, 3500);
+
+    const timer = setTimeout(() => {
+      if (gameSessionId !== currentSession) return;
+      if (box) {
+        box.style.background = 'var(--mint)';
+        box.textContent = '點擊！';
+      }
+      startT = performance.now();
+      ready = true;
+    }, delay);
+    timers.push(timer);
+
+    if (box) {
+      box.onclick = () => {
+        if (gameSessionId !== currentSession) return;
+        if (!ready) {
+          clearTimeout(timer);
+          sfx.fail();
+          box.textContent = '太早了！';
+          setTimeout(() => {
+            if (gameSessionId === currentSession) ENGINES.reactionClick();
+          }, 800);
+        } else {
+          const ms = Math.floor(performance.now() - startT);
+          const targetMs = currentDifficulty === 'hard' ? 210 : (currentDifficulty === 'normal' ? 280 : 400);
+          const score = Math.min(100, Math.max(30, Math.floor(100 - (ms - targetMs) * 0.3)));
+          
+          box.innerHTML = `<div style="text-align:center;"><div style="font-size:36px;">${ms} ms</div><div style="font-size:14px; margin-top:4px;">反應速度</div></div>`;
+          const initialBase = isStoryMode ? currentScore : 0;
+          updateScore(initialBase + score);
+          setTimeout(() => {
+            if (gameSessionId !== currentSession) return;
+            if (isStoryMode) startNextStoryStage(); else gameOver(score);
+          }, 1200);
+        }
+      };
+    }
+  },
+
+  sizeCompareMulti: () => {
+    const currentSession = gameSessionId;
+    let rounds = 10, cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+    const diffGap = currentDifficulty === 'hard' ? 8 : (currentDifficulty === 'normal' ? 18 : 32);
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+      const isA = Math.random() > 0.5;
+      const base = 75;
+      const sA = isA ? base + diffGap : base;
+      const sB = isA ? base : base + diffGap;
+      const shapeType = pick(['circle', 'square', 'rounded']);
+
+      stageInner.innerHTML = `
+        <div class="prompt-title">點選「面積較大」的幾何色塊！</div>
+        <div style="display:flex; gap:20px; align-items:center; margin:24px 0;">
+          <button class="bubbly-btn" id="bA" style="width:${sA}px; height:${sA}px; border-radius:${shapeType==='circle'?'50%':'16px'}; background:var(--yellow);"></button>
+          <button class="bubbly-btn" id="bB" style="width:${sB}px; height:${sB}px; border-radius:${shapeType==='circle'?'50%':'16px'}; background:var(--blue);"></button>
+        </div>
+      `;
+      function judge(choseA) {
+        if (gameSessionId !== currentSession) return;
+        if (choseA === isA) { gainedScore += 10; sfx.hit(); } else sfx.fail();
+        updateScore(initialBase + gainedScore);
+        next();
+      }
+      document.getElementById('bA').onclick = () => judge(true);
+      document.getElementById('bB').onclick = () => judge(false);
+    }
+    next();
+  },
+
+  toneRepeat: () => {
+    const currentSession = gameSessionId;
+    const toneDefs = [
+      { name: 'Do', freq: 261.63 },
+      { name: 'Re', freq: 293.66 },
+      { name: 'Mi', freq: 329.63 },
+      { name: 'Sol', freq: 392.00 }
+    ];
+    const len = currentDifficulty === 'hard' ? 4 : (currentDifficulty === 'normal' ? 3 : 2);
+    let targetSeq = Array(len).fill(0).map(() => pick(toneDefs));
+
+    function playTargetSequence() {
+      targetSeq.forEach((t, i) => {
+        setTimeout(() => {
+          if (gameSessionId === currentSession) sfx.playSFX(t.freq, 'sine', 0.3);
+        }, i * 500 + 300);
+      });
+    }
+    playTargetSequence();
+
+    let userOrder = [];
+
+    function renderToneUI() {
+      if (gameSessionId !== currentSession) return;
+      stageInner.innerHTML = `
+        <div class="prompt-title">聽旋律並將音符排入正確順序，完成後按提交！</div>
+        <button class="bubbly-btn" id="replayToneBtn" style="padding:6px 14px; font-size:12px; margin-bottom:10px;">🔊 再次試聽旋律</button>
+        
+        <div class="tone-slots-wrap">
+          ${Array(len).fill(0).map((_, i) => `
+            <div class="tone-slot ${userOrder[i] ? 'filled' : ''}">
+              ${userOrder[i] ? userOrder[i].name : `第${i+1}音`}
+            </div>
+          `).join('')}
+        </div>
+
+        <div style="font-size:12px; font-weight:800; color:var(--subtext); margin-bottom:8px;">點擊音符試聽並填入：</div>
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+          ${toneDefs.map(t => `
+            <button class="bubbly-btn tone-key-btn" data-name="${t.name}" data-freq="${t.freq}" style="padding:14px 14px; font-size:15px; font-family:var(--font-mono);">
+              🎵 ${t.name}
+            </button>
+          `).join('')}
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button class="bubbly-btn" id="resetToneBtn" style="padding:10px 18px; font-size:13px;">重設順序</button>
+          <button class="bubbly-btn" id="submitToneBtn" style="padding:10px 24px; font-size:14px; background:var(--mint); color:#FFF; box-shadow:0 3px 0 var(--mint-dark);">確認提交 ✓</button>
+        </div>
+      `;
+
+      document.getElementById('replayToneBtn').onclick = () => playTargetSequence();
+
+      stageInner.querySelectorAll('.tone-key-btn').forEach(btn => {
+        btn.onclick = () => {
+          if (gameSessionId !== currentSession) return;
+          const freq = parseFloat(btn.dataset.freq);
+          const name = btn.dataset.name;
+          sfx.playSFX(freq, 'sine', 0.25);
+          if (userOrder.length < len) {
+            userOrder.push({ name, freq });
+            renderToneUI();
+          }
+        };
+      });
+
+      document.getElementById('resetToneBtn').onclick = () => {
+        if (gameSessionId !== currentSession) return;
+        userOrder = [];
+        sfx.pop();
+        renderToneUI();
+      };
+
+      document.getElementById('submitToneBtn').onclick = () => {
+        if (gameSessionId !== currentSession) return;
+        if (userOrder.length < len) {
+          sfx.fail();
+          return;
+        }
+        let correctCount = 0;
+        userOrder.forEach((item, idx) => {
+          if (Math.abs(item.freq - targetSeq[idx].freq) < 1) correctCount++;
+        });
+
+        const score = Math.floor((correctCount / len) * 100);
+        const initialBase = isStoryMode ? currentScore : 0;
+        updateScore(initialBase + score);
+        if (score >= 60) sfx.hit(); else sfx.fail();
+        setTimeout(() => {
+          if (gameSessionId !== currentSession) return;
+          if (isStoryMode) startNextStoryStage(); else gameOver(score);
+        }, 500);
+      };
+    }
+    renderToneUI();
+  },
+
+  dualTask: () => {
+    const currentSession = gameSessionId;
+    const rounds = 10;
+    let cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+
+      const requireOdd = Math.random() > 0.5;
+      const requireRed = Math.random() > 0.5;
+
+      const num1 = requireOdd ? pick([1, 3, 5, 7, 9]) : pick([2, 4, 6, 8]);
+      const num2 = requireOdd ? pick([2, 4, 6, 8]) : pick([1, 3, 5, 7, 9]);
+      const numList = shuffle([num1, num2]);
+
+      stageInner.innerHTML = `
+        <div class="prompt-title">
+          左邊選【${requireOdd ? '奇數' : '偶數'}】，右邊選【${requireRed ? '紅色' : '藍色'}】！
+        </div>
+        <div style="display:flex; gap:20px; align-items:center; margin:16px 0;">
+          <div style="display:flex; flex-direction:column; gap:10px; padding:12px; background:#FFF; border:2px solid var(--line); border-radius:18px;">
+            <div style="font-size:11px; font-weight:800; color:var(--subtext); text-align:center;">左手：數字</div>
+            <div style="display:flex; gap:8px;">
+              ${numList.map(n => `<button class="bubbly-btn d-num-btn" data-val="${n}" style="width:52px; height:52px; font-size:18px;">${n}</button>`).join('')}
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:10px; padding:12px; background:#FFF; border:2px solid var(--line); border-radius:18px;">
+            <div style="font-size:11px; font-weight:800; color:var(--subtext); text-align:center;">右手：顏色</div>
+            <div style="display:flex; gap:8px;">
+              <button class="bubbly-btn d-color-btn" data-color="red" style="width:52px; height:52px; background:var(--primary);"></button>
+              <button class="bubbly-btn d-color-btn" data-color="blue" style="width:52px; height:52px; background:var(--blue);"></button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      let numCorrect = false, colorCorrect = false;
+      stageInner.querySelectorAll('.d-num-btn').forEach(btn => {
+        btn.onclick = () => {
+          if (gameSessionId !== currentSession) return;
+          const val = parseInt(btn.dataset.val);
+          if ((requireOdd && val % 2 !== 0) || (!requireOdd && val % 2 === 0)) {
+            numCorrect = true;
+            btn.style.borderColor = 'var(--mint)';
+            sfx.pop();
+            checkBoth();
+          } else sfx.fail();
+        };
+      });
+
+      stageInner.querySelectorAll('.d-color-btn').forEach(btn => {
+        btn.onclick = () => {
+          if (gameSessionId !== currentSession) return;
+          const c = btn.dataset.color;
+          if ((requireRed && c === 'red') || (!requireRed && c === 'blue')) {
+            colorCorrect = true;
+            btn.style.borderColor = 'var(--mint)';
+            sfx.pop();
+            checkBoth();
+          } else sfx.fail();
+        };
+      });
+
+      function checkBoth() {
+        if (numCorrect && colorCorrect) {
+          gainedScore += 10;
+          updateScore(initialBase + gainedScore);
+          sfx.hit();
+          setTimeout(next, 250);
+        }
+      }
+    }
+    next();
+  },
+
+  ringOverlap: () => {
+    const currentSession = gameSessionId;
+    let rounds = 10, cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+    const tolerance = currentDifficulty === 'hard' ? 12 : (currentDifficulty === 'normal' ? 20 : 30);
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+
+      let moveMode = 'horizontal';
+      if (currentDifficulty === 'normal') {
+        moveMode = Math.random() > 0.5 ? 'horizontal' : 'vertical';
+      } else if (currentDifficulty === 'hard') {
+        moveMode = pick(['horizontal', 'vertical', 'diagonal']);
+      }
+
+      stageInner.innerHTML = `
+        <div class="prompt-title">當兩枚光環完全重合的瞬間點擊！</div>
+        <div style="width:240px; height:240px; position:relative; background:#FFF; border:2.5px solid var(--line); border-radius:22px; overflow:hidden;" id="ringArena">
+          <div id="targetRing" style="position:absolute; left:95px; top:95px; width:50px; height:50px; border-radius:50%; border:3.5px solid var(--primary); transition:all 0.1s;"></div>
+          <div id="movingRing" style="position:absolute; left:0px; top:95px; width:50px; height:50px; border-radius:50%; border:3.5px solid var(--mint-dark); transition:box-shadow 0.1s;"></div>
+        </div>
+        <button class="bubbly-btn" id="ringTapBtn" style="margin-top:16px; padding:12px 36px; font-size:16px; background:var(--blue); color:#FFF;">重合點擊！</button>
+      `;
+
+      const mRing = document.getElementById('movingRing');
+      const tRing = document.getElementById('targetRing');
+      let pos = 0, speed = (currentDifficulty === 'hard' ? 3.6 : 2.4);
+
+      function ringTick() {
+        if (gameSessionId !== currentSession) return;
+        pos += speed;
+        if (pos > 190 || pos < 0) speed = -speed;
+
+        if (mRing) {
+          if (moveMode === 'horizontal') {
+            mRing.style.left = pos + 'px';
+            mRing.style.top = '95px';
+          } else if (moveMode === 'vertical') {
+            mRing.style.left = '95px';
+            mRing.style.top = pos + 'px';
+          } else {
+            mRing.style.left = pos + 'px';
+            mRing.style.top = pos + 'px';
+          }
+
+          const isOverlapping = Math.abs(pos - 95) < tolerance;
+          if (isOverlapping) {
+            mRing.style.borderColor = '#FFD670';
+            mRing.style.boxShadow = '0 0 16px 4px #FFD670';
+            if (tRing) {
+              tRing.style.borderColor = '#FFD670';
+              tRing.style.boxShadow = '0 0 16px 4px #FFD670';
+            }
+          } else {
+            mRing.style.borderColor = 'var(--mint-dark)';
+            mRing.style.boxShadow = 'none';
+            if (tRing) {
+              tRing.style.borderColor = 'var(--primary)';
+              tRing.style.boxShadow = 'none';
+            }
+          }
+        }
+        animFrame = requestAnimationFrame(ringTick);
+      }
+      ringTick();
+
+      const tapBtn = document.getElementById('ringTapBtn');
+      if (tapBtn) {
+        tapBtn.onpointerdown = () => {
+          if (gameSessionId !== currentSession) return;
+          const diff = Math.abs(pos - 95);
+          if (diff < tolerance) {
+            gainedScore += 10;
+            sfx.hit();
+            tapBtn.style.background = 'var(--yellow)';
+            tapBtn.style.color = 'var(--text)';
+            tapBtn.style.boxShadow = '0 2px 0 var(--yellow-shadow)';
+          } else {
+            sfx.fail();
+            tapBtn.style.background = 'var(--blue)';
+            tapBtn.style.color = '#FFF';
+          }
+          updateScore(initialBase + gainedScore);
+          setTimeout(next, 300);
+        };
+      }
+    }
+    next();
+  },
+
+  digitAscend: () => {
+    const currentSession = gameSessionId;
+    let rounds = 5, cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+    const count = currentDifficulty === 'hard' ? 12 : (currentDifficulty === 'normal' ? 8 : 5);
+    const timeLimit = currentDifficulty === 'hard' ? 8 : (currentDifficulty === 'normal' ? 10 : 12);
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+      let timeLeft = timeLimit;
+      let expected = 1;
+      let nums = shuffle(Array(count).fill(0).map((_, i) => i + 1));
+      const cols = count > 8 ? 4 : 3;
+
+      const roundTimer = setInterval(() => {
+        if (gameSessionId !== currentSession) {
+          clearInterval(roundTimer);
+          return;
+        }
+        timeLeft--;
+        const badge = document.getElementById('bigTimerBadge');
+        if (badge) badge.textContent = `⏱️ ${timeLeft} 秒`;
+        if (timeLeft <= 0) {
+          clearInterval(roundTimer);
+          sfx.fail();
+          next();
+        }
+      }, 1000);
+      timers.push({ clear: () => clearInterval(roundTimer) });
+
+      stageInner.innerHTML = `
+        <div class="center-countdown-badge active" id="bigTimerBadge">⏱️ ${timeLeft} 秒</div>
+        <div class="prompt-title">第 ${cur} / ${rounds} 輪：由小到大 (1 → ${count}) 點擊！</div>
+        <div style="display:grid; grid-template-columns:repeat(${cols},${cols===4?'54px':'68px'}); gap:10px;">
+          ${nums.map(n => `<button class="bubbly-btn asc-btn" data-n="${n}" style="height:${cols===4?'54px':'68px'}; font-size:${cols===4?'17px':'20px'};">${n}</button>`).join('')}
+        </div>
+      `;
+
+      stageInner.querySelectorAll('.asc-btn').forEach(b => {
+        b.onclick = () => {
+          if (gameSessionId !== currentSession) return;
+          if (parseInt(b.dataset.n) === expected) {
+            b.style.opacity = '0.2';
+            sfx.hit();
+            expected++;
+            if (expected > count) {
+              clearInterval(roundTimer);
+              gainedScore += 20;
+              updateScore(initialBase + gainedScore);
+              setTimeout(next, 250);
+            }
+          } else sfx.fail();
+        };
+      });
+    }
+    next();
+  },
+
+  camFingerTrace: () => {
+    const currentSession = gameSessionId;
+    stageInner.innerHTML = `
+      <video id="camFeed" autoplay playsinline muted></video>
+      <canvas id="camCanvas"></canvas>
+      <div class="cam-overlay">
+        <div class="prompt-title" style="background:rgba(255,255,255,0.85); padding:6px 14px; border-radius:12px; border:2px solid var(--line); margin-top:10px;">
+          用食指指尖跟隨空中移動的光圈！
+        </div>
+      </div>
+    `;
+    const video = document.getElementById('camFeed');
+    const canvas = document.getElementById('camCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let t = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+    const speed = currentDifficulty === 'hard' ? 0.05 : (currentDifficulty === 'normal' ? 0.03 : 0.02);
+    const radius = currentDifficulty === 'hard' ? 22 : 28;
+    canvas.width = stageInner.clientWidth || 320;
+    canvas.height = stageInner.clientHeight || 480;
+
+    let fingerPos = null;
+    initHands(results => {
+      if (gameSessionId !== currentSession) return;
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
+        const lm = results.multiHandLandmarks[0];
+        fingerPos = { x: (1 - lm[8].x) * canvas.width, y: lm[8].y * canvas.height };
+      }
+    }).then(() => {
+      if (video) startCamera(video);
+    });
+
+    stageInner.onpointermove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      fingerPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+
+    function renderTrace() {
+      if (gameSessionId !== currentSession) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      t += speed;
+      const targetX = canvas.width/2 + Math.sin(t) * 90;
+      const targetY = canvas.height/2 + Math.cos(t * 1.5) * 60;
+
+      ctx.beginPath();
+      ctx.arc(targetX, targetY, radius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(72, 202, 155, 0.4)';
+      ctx.strokeStyle = '#2D3748';
+      ctx.lineWidth = 3;
+      ctx.fill(); ctx.stroke();
+
+      if (fingerPos && Math.hypot(fingerPos.x - targetX, fingerPos.y - targetY) < radius + 8) {
+        gainedScore = Math.min(100, gainedScore + 1);
+        updateScore(initialBase + gainedScore);
+      }
+      if (t > 4) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+      } else animFrame = requestAnimationFrame(renderTrace);
+    }
+    renderTrace();
+  },
+
+  gyroMaze: () => {
+    const currentSession = gameSessionId;
+    stageInner.innerHTML = `
+      <div class="prompt-title">傾斜手機引導小球進入星星終點！</div>
+      <div class="gyro-arena" id="arena" style="width:240px; height:240px;">
+        <div style="position:absolute; right:20px; top:20px; font-size:24px;">⭐</div>
+        <div class="gyro-ball" id="ball" style="left:30px; top:200px;"></div>
+      </div>
+    `;
+    const ball = document.getElementById('ball');
+    let x = 30, y = 200, vx = 0, vy = 0;
+    const sens = currentDifficulty === 'hard' ? 0.05 : 0.035;
+
+    function onOrient(e) {
+      if (gameSessionId !== currentSession) return;
+      vx += (e.gamma || 0) * sens;
+      vy += ((e.beta || 45) - 45) * sens;
+    }
+    window.addEventListener('deviceorientation', onOrient);
+
+    function tick() {
+      if (gameSessionId !== currentSession) return;
+      x += vx; y += vy;
+      vx *= 0.92; vy *= 0.92;
+      if (ball) {
+        ball.style.left = x + 'px';
+        ball.style.top = y + 'px';
+      }
+      if (Math.hypot(x - 200, y - 30) < 30) {
+        window.removeEventListener('deviceorientation', onOrient);
+        const initialBase = isStoryMode ? currentScore : 0;
+        updateScore(initialBase + 100);
+        if (isStoryMode) startNextStoryStage(); else gameOver(100);
+      } else animFrame = requestAnimationFrame(tick);
+    }
+    tick();
+  },
+
+  colorWordCount: () => {
+    const currentSession = gameSessionId;
+    const count = currentDifficulty === 'hard' ? 22 : (currentDifficulty === 'normal' ? 14 : 8);
+    let rounds = 10, cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+      const dots = Array(count).fill(0).map(() => Math.random() > 0.5 ? 'red' : 'blue');
+      const redCount = dots.filter(c => c === 'red').length;
+      const opts = shuffle([redCount - 1, redCount, redCount + 1]);
+
+      stageInner.innerHTML = `
+        <div class="prompt-title">第 ${cur} / ${rounds} 題：畫面上共有幾顆「紅色」圓點？</div>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; width:220px; justify-content:center; margin:16px 0;">
+          ${dots.map(c => `<div style="width:24px; height:24px; border-radius:50%; background:${c === 'red' ? 'var(--primary)' : 'var(--blue)'}; border:2px solid var(--line);"></div>`).join('')}
+        </div>
+        <div style="display:flex; gap:10px;">
+          ${opts.map(n => `
+            <button class="bubbly-btn count-btn" data-n="${n}" style="padding:12px 20px; font-size:18px;">${n}</button>
+          `).join('')}
+        </div>
+      `;
+      stageInner.querySelectorAll('.count-btn').forEach(b => {
+        b.onclick = () => {
+          if (gameSessionId !== currentSession) return;
+          if (parseInt(b.dataset.n) === redCount) {
+            gainedScore += 10;
+            sfx.hit();
+          } else sfx.fail();
+          updateScore(initialBase + gainedScore);
+          setTimeout(next, 250);
+        };
+      });
+    }
+    next();
+  },
+
+  mirrorArrow: () => {
+    const currentSession = gameSessionId;
+    const rounds = 10;
+    let cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+      const isLeft = Math.random() > 0.5;
+      stageInner.innerHTML = `
+        <div class="prompt-title">鏡子裡的箭頭：請點選反射後的真實方向！</div>
+        <div id="arrowBox" style="margin:20px 0; transform:${isLeft ? 'scaleX(-1)' : 'scaleX(1)'}; color:var(--primary); transition:all 0.2s;">
+          <svg width="70" height="70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
+        <div style="display:flex; gap:16px;">
+          <button class="bubbly-btn" id="lBtn" style="padding:14px 26px; font-size:18px;">左</button>
+          <button class="bubbly-btn" id="rBtn" style="padding:14px 26px; font-size:18px;">右</button>
+        </div>
+      `;
+
+      function check(choseLeft) {
+        if (gameSessionId !== currentSession) return;
+        const correct = isLeft ? !choseLeft : choseLeft;
+        const box = document.getElementById('arrowBox');
+        if (correct) {
+          gainedScore = Math.min(100, gainedScore + 10);
+          if (box) box.classList.add('flash-correct');
+          sfx.hit();
+        } else {
+          sfx.fail();
+        }
+        updateScore(initialBase + gainedScore);
+        setTimeout(next, 250);
+      }
+
+      document.getElementById('lBtn').onclick = () => check(true);
+      document.getElementById('rBtn').onclick = () => check(false);
+    }
+    next();
+  },
+
+  patternComplete: () => {
+    const currentSession = gameSessionId;
+    let rounds = 10, cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+
+      let qText, ans, opts;
+      if (currentDifficulty === 'easy') {
+        const step = rand(2, 5);
+        const start = rand(1, 10);
+        qText = `${start}, ${start+step}, ${start+step*2}, ${start+step*3}, [ ? ]`;
+        ans = start + step * 4;
+        opts = shuffle([ans - 2, ans, ans + 3]);
+      } else if (currentDifficulty === 'normal') {
+        const mult = rand(2, 3);
+        const start = rand(2, 4);
+        qText = `${start}, ${start*mult}, ${start*mult*mult}, [ ? ]`;
+        ans = start * mult * mult * mult;
+        opts = shuffle([ans - mult, ans, ans + mult * 2]);
+      } else {
+        const start = rand(1, 5);
+        qText = `${start}, ${start+1}, ${start+3}, ${start+7}, ${start+14}, [ ? ]`;
+        ans = start + 25;
+        opts = shuffle([ans - 2, ans, ans + 4]);
+      }
+
+      stageInner.innerHTML = `
+        <div class="prompt-title">第 ${cur} / ${rounds} 題數列規律：${qText}</div>
+        <div class="hero-display" style="font-size:32px;">?</div>
+        <div style="display:flex; gap:12px;">
+          ${opts.map(n => `<button class="bubbly-btn pat-btn" data-n="${n}" style="padding:14px 22px; font-size:18px;">${n}</button>`).join('')}
+        </div>
+      `;
+      stageInner.querySelectorAll('.pat-btn').forEach(b => {
+        b.onclick = () => {
+          if (gameSessionId !== currentSession) return;
+          if (parseInt(b.dataset.n) === ans) {
+            gainedScore += 10;
+            sfx.hit();
+          } else sfx.fail();
+          updateScore(initialBase + gainedScore);
+          setTimeout(next, 250);
+        };
+      });
+    }
+    next();
+  },
+
+  rapidTap: () => {
+    const currentSession = gameSessionId;
+    const targetTaps = currentDifficulty === 'hard' ? 75 : (currentDifficulty === 'normal' ? 55 : 35);
+    let taps = 0, timeLeft = 10;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    stageInner.innerHTML = `
+      <div class="center-countdown-badge active" id="bigTimerBadge">⏱️ 10 秒</div>
+      <div class="prompt-title">10 秒極速爆發！目標：${targetTaps} 次</div>
+      <button class="bubbly-btn" id="tapBtn" style="width:140px; height:140px; border-radius:50%; font-size:28px; background:var(--yellow); box-shadow:0 6px 0 var(--yellow-shadow);">TAP!</button>
+    `;
+    const interval = setInterval(() => {
+      if (gameSessionId !== currentSession) {
+        clearInterval(interval);
+        return;
+      }
+      timeLeft--;
+      const badge = document.getElementById('bigTimerBadge');
+      if (badge) badge.textContent = `⏱️ ${timeLeft} 秒`;
+      if (timeLeft <= 0) {
+        clearInterval(interval);
+        const score = Math.min(100, Math.floor((taps / targetTaps) * 100));
+        if (isStoryMode) startNextStoryStage(); else gameOver(score);
+      }
+    }, 1000);
+    timers.push({ clear: () => clearInterval(interval) });
+
+    const tapBtn = document.getElementById('tapBtn');
+    if (tapBtn) {
+      tapBtn.onpointerdown = () => {
+        if (gameSessionId !== currentSession) return;
+        taps++;
+        sfx.pop();
+        const score = Math.min(100, Math.floor((taps / targetTaps) * 100));
+        updateScore(initialBase + score);
+      };
+    }
+  },
+
+  symbolPair: () => {
+    const currentSession = gameSessionId;
+    const pairs = currentDifficulty === 'hard' ? ['A','A','B','B','C','C','D','D'] : (currentDifficulty === 'normal' ? ['A','A','B','B','C','C'] : ['A','A','B','B']);
+    let cards = shuffle(pairs);
+    let flipped = [], matched = 0;
+
+    stageInner.innerHTML = `
+      <div class="prompt-title">翻開隱藏卡片，完成配對！</div>
+      <div style="display:grid; grid-template-columns:repeat(${cards.length > 6 ? 4 : (cards.length > 4 ? 3 : 2)},${cards.length > 6 ? '64px':'80px'}); gap:10px;">
+        ${cards.map((c, i) => `<button class="bubbly-btn card-btn" data-i="${i}" data-c="${c}" style="height:${cards.length > 6 ? '64px':'80px'}; font-size:20px;">?</button>`).join('')}
+      </div>
+    `;
+    stageInner.querySelectorAll('.card-btn').forEach(b => {
+      b.onclick = () => {
+        if (gameSessionId !== currentSession) return;
+        if (b.textContent !== '?' || flipped.length >= 2) return;
+        b.textContent = b.dataset.c;
+        sfx.pop();
+        flipped.push(b);
+        if (flipped.length === 2) {
+          if (flipped[0].dataset.c === flipped[1].dataset.c) {
+            sfx.hit();
+            matched += 2;
+            flipped = [];
+            if (matched >= cards.length) {
+              const initialBase = isStoryMode ? currentScore : 0;
+              updateScore(initialBase + 100);
+              if (isStoryMode) startNextStoryStage(); else gameOver(100);
+            }
+          } else {
+            setTimeout(() => {
+              if (gameSessionId !== currentSession) return;
+              if (flipped[0]) flipped[0].textContent = '?';
+              if (flipped[1]) flipped[1].textContent = '?';
+              flipped = [];
+            }, 600);
+          }
+        }
+      };
+    });
+  },
+
+  memoryFlipMaster: () => {
+    const currentSession = gameSessionId;
+    const dim = currentDifficulty === 'hard' ? 4 : 3;
+    const total = dim * dim;
+    const highlightCount = currentDifficulty === 'hard' ? 6 : (currentDifficulty === 'normal' ? 4 : 3);
+    let targets = [];
+    while (targets.length < highlightCount) {
+      const idx = rand(0, total - 1);
+      if (!targets.includes(idx)) targets.push(idx);
+    }
+
+    stageInner.innerHTML = `
+      <div class="prompt-title">記住瞬間亮起的 ${highlightCount} 個方塊！</div>
+      <div style="display:grid; grid-template-columns:repeat(${dim},${dim===4?'54px':'68px'}); gap:10px;" id="mMatrix">
+        ${Array(total).fill(0).map((_, i) => `<div class="bubbly-btn m-cell" data-i="${i}" style="height:${dim===4?'54px':'68px'}; ${targets.includes(i)?'background:var(--yellow);':''}"></div>`).join('')}
+      </div>
+    `;
+
+    setTimeout(() => {
+      if (gameSessionId !== currentSession) return;
+      stageInner.querySelectorAll('.m-cell').forEach(c => c.style.background = 'var(--panel)');
+      let userClicked = [];
+      stageInner.querySelectorAll('.m-cell').forEach(cell => {
+        cell.onclick = () => {
+          if (gameSessionId !== currentSession) return;
+          const idx = parseInt(cell.dataset.i);
+          if (!userClicked.includes(idx)) {
+            userClicked.push(idx);
+            cell.style.background = targets.includes(idx) ? 'var(--mint)' : 'var(--primary)';
+            if (targets.includes(idx)) sfx.hit(); else sfx.fail();
+
+            if (userClicked.length >= highlightCount) {
+              let correct = userClicked.filter(x => targets.includes(x)).length;
+              const score = Math.floor((correct / highlightCount) * 100);
+              const initialBase = isStoryMode ? currentScore : 0;
+              updateScore(initialBase + score);
+              setTimeout(() => {
+                if (gameSessionId !== currentSession) return;
+                if (isStoryMode) startNextStoryStage(); else gameOver(score);
+              }, 400);
+            }
+          }
+        };
+      });
+    }, currentDifficulty === 'hard' ? 650 : 1000);
+  },
+
+  coreAwaken: () => {
+    const currentSession = gameSessionId;
+    let rounds = 10, cur = 0, gainedScore = 0;
+    const initialBase = isStoryMode ? currentScore : 0;
+
+    function next() {
+      if (gameSessionId !== currentSession) return;
+      if (cur >= rounds) {
+        if (isStoryMode) startNextStoryStage(); else gameOver(gainedScore);
+        return;
+      }
+      cur++;
+      setHudProgress(`${cur}/${rounds}`);
+
+      let qText, ans, opts;
+      if (currentDifficulty === 'easy') {
+        const a = rand(10, 50), b = rand(10, 50);
+        qText = `${a} + ${b} = ?`; ans = a + b;
+        opts = shuffle([ans - 5, ans, ans + 8]);
+      } else if (currentDifficulty === 'normal') {
+        const a = rand(10, 40), b = rand(5, 30), c = rand(2, 15);
+        qText = `${a} + ${b} - ${c} = ?`; ans = a + b - c;
+        opts = shuffle([ans - 4, ans, ans + 6]);
+      } else {
+        const a = rand(3, 9), b = rand(4, 9), c = rand(10, 30);
+        qText = `${a} × ${b} - ${c} = ?`; ans = a * b - c;
+        opts = shuffle([ans - 3, ans, ans + 5]);
+      }
+
+      stageInner.innerHTML = `
+        <div class="prompt-title">第 ${cur} / ${rounds} 題全腦運算：${qText}</div>
+        <div class="hero-display" style="font-size:32px;">${qText.replace('= ?', '')}</div>
+        <div style="display:flex; gap:12px;">
+          ${opts.map(n => `<button class="bubbly-btn core-btn" data-n="${n}" style="padding:14px 22px; font-size:18px;">${n}</button>`).join('')}
+        </div>
+      `;
+      stageInner.querySelectorAll('.core-btn').forEach(b => {
+        b.onclick = () => {
+          if (gameSessionId !== currentSession) return;
+          if (parseInt(b.dataset.n) === ans) {
+            gainedScore += 10;
+            sfx.hit();
+          } else sfx.fail();
+          updateScore(initialBase + gainedScore);
+          setTimeout(next, 250);
+        };
+      });
+    }
+    next();
+  }
+};
+</script>
+</body>
+</html>
