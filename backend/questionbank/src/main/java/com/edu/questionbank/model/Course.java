@@ -1,51 +1,48 @@
 package com.edu.questionbank.model;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 課程實體 — 對應 courses 表
+ * 課程實體 — 僅用於 JPA 自建的 qb_courses 資料表（與既有 dbo.Courses 分離）
+ * CourseController 使用 JdbcTemplate 直接操作 dbo.Courses，不走此 Entity
  */
 @Entity
-@Table(name = "courses")
+@Table(name = "qb_courses")
 public class Course {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "課程名稱不可空白")
-    @Column(name = "name", length = 200, nullable = false)
+    @Column(name = "name", length = 200)
     private String name;
 
-    @NotBlank(message = "課號不可空白")
-    @Column(name = "code", length = 100, nullable = false)
+    @Column(name = "code", length = 100)
     private String code;
 
     @Column(name = "type", length = 50)
-    private String type; // 必修 / 選修 / 共同必修 / 通識必修 / 通識選修 / 專業必修 / 專業選修
+    private String type;
 
     @Column(name = "academic_year", length = 20)
-    private String year; // 113, 114 等學年度
+    private String year;
 
     @Column(name = "semester", length = 20)
-    private String semester; // 1, 2, 第一學期等
+    private String semester;
 
     @Column(name = "credits", length = 20)
-    private String credits; // 3, 2, 4.0 等學分數
+    private String credits;
 
     @Column(name = "grade", length = 50)
-    private String grade; // 高二, 一年級, 大一等
+    private String grade;
 
     @Column(name = "class_group", length = 50)
-    private String classGroup; // 甲班, 乙班, 綜合班等
+    private String classGroup;
 
     @Column(name = "teacher", length = 100)
-    private String teacher; // 授課教師
+    private String teacher;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -53,9 +50,7 @@ public class Course {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    /** 此課程的所有修課學生（OneToMany） */
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonManagedReference
     private List<CourseStudent> students = new ArrayList<>();
 
     @PrePersist
@@ -68,18 +63,6 @@ public class Course {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
-
-    public void addStudent(CourseStudent student) {
-        students.add(student);
-        student.setCourse(this);
-    }
-
-    public void removeStudent(CourseStudent student) {
-        students.remove(student);
-        student.setCourse(null);
-    }
-
-    // ── Getters & Setters ──────────────────────────────────────
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

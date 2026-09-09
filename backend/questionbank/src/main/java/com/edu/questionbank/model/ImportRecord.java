@@ -29,7 +29,7 @@ public class ImportRecord {
     @Column(name = "option_d", length = 500)
     private String optionD;
 
-    @Column(length = 1)
+    @Column(length = 50)
     private String answer;
 
     @Column(length = 50)
@@ -37,6 +37,9 @@ public class ImportRecord {
 
     @Column(length = 100)
     private String unit;
+
+    @Column(name = "department", length = 100)
+    private String department;
 
     @Column(name = "source_file", length = 255)
     private String sourceFile;
@@ -85,6 +88,8 @@ public class ImportRecord {
     public void setSubject(String subject) { this.subject = subject; }
     public String getUnit() { return unit; }
     public void setUnit(String unit) { this.unit = unit; }
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
     public String getSourceFile() { return sourceFile; }
     public void setSourceFile(String sourceFile) { this.sourceFile = sourceFile; }
     public Integer getConfidence() { return confidence; }

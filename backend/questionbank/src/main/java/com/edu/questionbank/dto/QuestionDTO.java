@@ -23,7 +23,7 @@ public class QuestionDTO {
     @NotBlank(message = "選項 D 不可空白")
     private String optD;
 
-    @Pattern(regexp = "[ABCD]", message = "答案必須為 A、B、C 或 D")
+    @Pattern(regexp = "[A-D,\\s]*", message = "答案必須由 A、B、C 或 D 組成")
     private String answer;
 
     private String subject;

@@ -342,4 +342,147 @@ footer.footbar{text-align:center;padding:16px;background:var(--header-bg);color:
 #studentPreviewTable th { font-size: 12.5px; background: #f8fbfa; color: var(--ink-soft); }
 #studentPreviewTable td { font-size: 12.5px; padding: 8px 12px; }
 
+/* ── 題庫管理 階層樹狀檢視樣式 ───────────────────────── */
+.view-mode-toggle { display: inline-flex; background: var(--line); padding: 3px; border-radius: 8px; gap: 2px; }
+.vm-btn { border: none; background: transparent; color: var(--ink-soft); font-size: 12.5px; padding: 6px 14px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; transition: all .15s; font-family: var(--font); }
+.vm-btn.active { background: #fff; color: var(--teal-800); box-shadow: 0 1px 3px rgba(0,0,0,0.08); font-weight: 600; }
+
+.bank-tree-container { display: flex; flex-direction: column; gap: 12px; }
+
+/* 階層卡片 - Level 1: 科系 (Dept) */
+.tree-dept-card { background: var(--bg-card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.02); transition: border-color .15s; }
+.tree-dept-card:hover { border-color: var(--teal-200); }
+.tree-dept-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: linear-gradient(90deg, #f0f7f5, #ffffff); cursor: pointer; user-select: none; border-bottom: 1px solid transparent; transition: background .15s; }
+.tree-dept-header:hover { background: linear-gradient(90deg, #e6f4f0, #ffffff); }
+.tree-dept-header.open { border-bottom-color: var(--line); }
+.tree-dept-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: var(--teal-900); }
+.tree-dept-title i.toggle-icon { font-size: 14px; color: var(--ink-mute); transition: transform .2s ease; }
+.tree-dept-title i.dept-icon { font-size: 19px; color: var(--teal-600); }
+
+/* 階層區塊 - Level 2: 科目 (Subject) */
+.tree-subject-box { margin: 10px 14px; border: 1px solid var(--line); border-radius: 8px; background: #fff; overflow: hidden; }
+.tree-subject-header { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; background: #f8fafc; cursor: pointer; user-select: none; border-bottom: 1px solid transparent; transition: background .15s; }
+.tree-subject-header:hover { background: #f1f5f9; }
+.tree-subject-header.open { border-bottom-color: var(--line); }
+.tree-subject-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--blue-800); }
+.tree-subject-title i.subj-icon { font-size: 17px; color: var(--blue-600); }
+
+/* 階層區塊 - Level 3: 單元 (Unit) */
+.tree-unit-box { margin: 8px 12px; border: 1px dashed var(--teal-200); border-radius: 6px; background: #fafcfb; overflow: hidden; }
+.tree-unit-header { display: flex; align-items: center; justify-content: space-between; padding: 9px 14px; background: var(--teal-50); cursor: pointer; user-select: none; border-bottom: 1px solid transparent; transition: background .15s; }
+.tree-unit-header:hover { background: #d7f2e9; }
+.tree-unit-header.open { border-bottom-color: var(--teal-200); }
+.tree-unit-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--teal-800); }
+.tree-unit-title i.unit-icon { font-size: 15px; color: var(--teal-600); }
+
+/* 數量徽章 */
+.tree-badge { font-size: 11.5px; padding: 2px 9px; border-radius: 999px; font-weight: 500; }
+.tree-badge.dept-badge { background: var(--teal-50); color: var(--teal-800); border: 1px solid var(--teal-200); }
+.tree-badge.subj-badge { background: var(--blue-50); color: var(--blue-800); }
+.tree-badge.unit-badge { background: #fff; color: var(--ink-soft); border: 1px solid var(--line); }
+
+/* ── 拖曳 (Drag & Drop) 視覺回饋 ── */
+.tree-subject-header[draggable="true"],
+.tree-unit-header[draggable="true"] {
+  cursor: grab;
+}
+.tree-subject-header[draggable="true"]:active,
+.tree-unit-header[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* 拖曳中的來源節點 */
+.tree-dragging {
+  opacity: 0.35 !important;
+  outline: 2px dashed var(--teal-400);
+  outline-offset: -2px;
+  background: var(--slate-100) !important;
+  transition: opacity 0.15s, outline 0.15s;
+}
+
+/* 合法放置目標高亮 */
+.tree-drag-over {
+  outline: 2.5px dashed var(--blue-500) !important;
+  outline-offset: -2px;
+  background: rgba(59, 130, 246, 0.06) !important;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.15);
+  transition: outline 0.12s, background 0.12s, box-shadow 0.12s;
+}
+
+/* 科系放置目標高亮 (更明顯) */
+.tree-dept-card.tree-drag-over {
+  outline: 2.5px dashed var(--teal-500) !important;
+  background: rgba(20, 184, 166, 0.04) !important;
+  box-shadow: 0 0 12px rgba(20, 184, 166, 0.12);
+}
+
+/* 拖曳提示小標籤 */
+.drag-hint-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--slate-400);
+  margin-left: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.tree-subject-header:hover .drag-hint-tag,
+.tree-unit-header:hover .drag-hint-tag {
+  opacity: 1;
+}
+
+/* 轉移/複製 選項卡片樣式 */
+.transfer-mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
+}
+.transfer-mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  background: #fff;
+}
+.transfer-mode-option:hover {
+  border-color: var(--blue-300);
+  background: var(--blue-50);
+}
+.transfer-mode-option.selected {
+  border-color: var(--teal-500);
+  background: var(--teal-50);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.12);
+}
+.transfer-mode-option input[type="radio"] {
+  margin-top: 3px;
+  accent-color: var(--teal-600);
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.transfer-mode-option .mode-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.transfer-mode-option .mode-desc {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin-top: 2px;
+}
+.transfer-mode-option i.mode-icon {
+  font-size: 22px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.transfer-mode-option.selected i.mode-icon {
+  color: var(--teal-600);
+}
 

@@ -111,6 +111,25 @@
   <!-- Step 1: Upload & Mode Selection -->
   <div id="importUploadSection">
     
+    <!-- Target Department Selector -->
+    <div class="card" style="margin-bottom:16px;padding:14px 18px;background:linear-gradient(90deg, #f0f7f5, #ffffff);border:1px solid var(--teal-200);">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <label style="font-size:14px;font-weight:600;color:var(--teal-900);display:flex;align-items:center;gap:6px;">
+          <i class="ti ti-school" style="color:var(--teal-600);font-size:18px;"></i>匯入目標科系：
+        </label>
+        <select id="importDeptSelect" onchange="onImportDeptSelectChange(this.value)" style="padding:6px 12px;font-size:13px;border-radius:6px;border:1px solid var(--line);min-width:200px;background:#fff;font-weight:500;color:var(--ink);">
+          <option value="自然科學科">自然科學科</option>
+          <option value="資訊工程科系">資訊工程科系</option>
+          <option value="商業管理學院">商業管理學院</option>
+          <option value="電子工程科系">電子工程科系</option>
+          <option value="應用外語科系">應用外語科系</option>
+          <option value="custom">✏️ 自訂科系名稱...</option>
+        </select>
+        <input type="text" id="importDeptCustomInput" placeholder="請輸入自訂科系名稱" style="display:none;padding:6px 10px;font-size:13px;width:200px;border-radius:6px;border:1px solid var(--teal-400);">
+        <span style="font-size:12px;color:var(--ink-mute);"><i class="ti ti-info-circle"></i> 匯入的題目將自動歸類至此科系</span>
+      </div>
+    </div>
+
     <!-- Mode Switcher Tabs -->
     <div class="import-mode-tabs">
       <div class="import-mode-tab active" id="tabFixedImport" onclick="switchImportMode('fixed')">
@@ -263,38 +282,57 @@
 </div>
 
 
-<!-- ===== 題庫管理（強化版） ===== -->
+<!-- ===== 題庫管理（階層化強化版） ===== -->
 <div class="panel" id="t-bank">
   <div class="page-head">
-    <div><h1>題庫管理</h1><div class="page-sub">瀏覽、編輯、分類與搜尋題庫；支援多維度篩選</div></div>
+    <div><h1>題庫管理</h1><div class="page-sub">瀏覽、編輯、分類與搜尋題庫；支援【科系 ➔ 科目 ➔ 單元】階層展延與多維度篩選</div></div>
     <button class="primary" id="bankAddBtn"><i class="ti ti-plus"></i>新增題目</button>
   </div>
 
   <div class="info-note">
     <i class="ti ti-api"></i>
-    目前為前端模擬模式。啟動 Spring Boot 後，API 端點 <code>GET /api/questions</code> 支援 dept / subject / unit / difficulty / keyword / page 查詢參數。
+    已啟用【科系 ➔ 科目 ➔ 單元】三層式階層檢視模式，中間篩選區塊已完整保留並支援動態連動選單。
   </div>
 
+  <!-- 中間篩選區塊 (保留並增加連動) -->
   <div class="filter-bar">
-    <select id="bankDept"><option value="">全部科系</option></select>
-    <select id="bankSubject"><option value="">全部科目</option></select>
-    <select id="bankUnit"><option value="">全部單元</option></select>
+    <select id="bankDept" onchange="onBankDeptChange()"><option value="">全部科系</option></select>
+    <select id="bankSubject" onchange="onBankSubjectChange()"><option value="">全部科目</option></select>
+    <select id="bankUnit" onchange="onBankUnitChange()"><option value="">全部單元</option></select>
     <select id="bankDifficulty"><option value="">全部難度</option></select>
     <input type="text" id="bankSearch" placeholder="🔍 搜尋題目關鍵字" style="flex:1;min-width:200px;">
-    <button class="ghost" onclick="bankFilters={dept:'',subject:'',unit:'',difficulty:'',keyword:''};document.getElementById('bankSearch').value='';['bankDept','bankSubject','bankUnit','bankDifficulty'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});bankPage=1;renderBankPanel();"><i class="ti ti-x"></i>清除篩選</button>
+    <button class="ghost" onclick="resetBankFilters()"><i class="ti ti-x"></i>清除篩選</button>
   </div>
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-    <span id="bankTotalCount" style="font-size:13px;color:var(--ink-mute);"></span>
+  <!-- 控制列：統計數量、展開/收合控制、檢視模式切換 -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span id="bankTotalCount" style="font-size:13.5px;font-weight:500;color:var(--ink);"></span>
+      <div id="treeActionBtns" style="display:flex;gap:6px;">
+        <button class="ghost" style="padding:4px 10px;font-size:12px;" onclick="expandAllBankTree(true)"><i class="ti ti-arrows-maximize"></i>展開全部</button>
+        <button class="ghost" style="padding:4px 10px;font-size:12px;" onclick="expandAllBankTree(false)"><i class="ti ti-arrows-minimize"></i>收合全部</button>
+      </div>
+    </div>
+    
+    <div class="view-mode-toggle">
+      <button id="vmTreeBtn" class="vm-btn active" onclick="switchBankViewMode('tree')"><i class="ti ti-sitemap"></i>階層樹狀檢視</button>
+      <button id="vmListBtn" class="vm-btn" onclick="switchBankViewMode('list')"><i class="ti ti-list"></i>傳統列表檢視</button>
+    </div>
   </div>
 
-  <div class="card" style="padding:0;overflow:auto;">
-    <table>
-      <thead><tr><th style="width:40%">題目</th><th>科目</th><th>單元</th><th>難度</th><th>來源</th><th>操作</th></tr></thead>
-      <tbody id="bankTbody"></tbody>
-    </table>
+  <!-- 1. 階層樹狀檢視區塊 (科系 -> 科目 -> 單元) -->
+  <div id="bankTreeView" class="bank-tree-container"></div>
+
+  <!-- 2. 傳統列表檢視區塊 -->
+  <div id="bankListView" style="display:none;">
+    <div class="card" style="padding:0;overflow:auto;">
+      <table>
+        <thead><tr><th style="width:40%">題目</th><th>科系</th><th>科目</th><th>單元</th><th>難度</th><th>來源</th><th>操作</th></tr></thead>
+        <tbody id="bankTbody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="bankPagination"></div>
   </div>
-  <div class="pagination" id="bankPagination"></div>
 </div>
 
 <!-- ===== 學習資料夾（強化版） ===== -->

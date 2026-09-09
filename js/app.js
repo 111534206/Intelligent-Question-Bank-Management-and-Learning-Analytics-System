@@ -142,11 +142,19 @@ const QuestionAPI = {
 function getSavedGeminiApiKey() {
   const inputH = document.getElementById('geminiApiKeyInputHeader')?.value?.trim();
   const inputP = document.getElementById('geminiApiKeyInput')?.value?.trim();
-  return inputH || inputP || localStorage.getItem('gemini_api_key') || '';
+  let key = inputH || inputP || localStorage.getItem('gemini_api_key') || '';
+  if (key && !key.startsWith('AIzaSy')) {
+    localStorage.removeItem('gemini_api_key');
+    key = '';
+  }
+  return key;
 }
 
 function saveGeminiApiKey(key) {
-  key = key.trim();
+  key = (key || '').trim();
+  if (key && !key.startsWith('AIzaSy')) {
+    toast('提醒：Google Gemini API Key 通常為 AIzaSy 開頭，請確認是否輸入正確！', 'warning');
+  }
   localStorage.setItem('gemini_api_key', key);
   const inputH = document.getElementById('geminiApiKeyInputHeader');
   const inputP = document.getElementById('geminiApiKeyInput');
@@ -155,7 +163,7 @@ function saveGeminiApiKey(key) {
   if (key) {
     toast('Google Gemini API Key 已成功儲存！', 'success');
   } else {
-    toast('已清除 API Key', 'info');
+    toast('已清除 API Key，將自動使用伺服器預設金鑰', 'info');
   }
 }
 
@@ -178,10 +186,11 @@ const ImportAPI = {
     if (USE_API) return apiFetch('GET', '/import/pending');
     return DB.pending.filter(p => p.status === 'pending');
   },
-  async uploadFixed(files) {
+  async uploadFixed(files, dept = '自然科學科') {
     if (USE_API) {
       const formData = new FormData();
       files.forEach(f => formData.append('files', f));
+      if (dept) formData.append('dept', dept);
       const headers = {};
       const key = getSavedGeminiApiKey();
       if (key) headers['X-Gemini-Api-Key'] = key;
@@ -194,10 +203,11 @@ const ImportAPI = {
     }
     return null;
   },
-  async uploadPptAi(files, subject, difficulty, count) {
+  async uploadPptAi(files, dept = '自然科學科', subject = '一般', difficulty = '中', count = 5) {
     if (USE_API) {
       const formData = new FormData();
       files.forEach(f => formData.append('files', f));
+      if (dept) formData.append('dept', dept);
       if (subject) formData.append('subject', subject);
       if (difficulty) formData.append('difficulty', difficulty);
       if (count) formData.append('count', count);
@@ -854,8 +864,27 @@ function removeFile(idx) {
   renderFileList();
 }
 
+function onImportDeptSelectChange(val) {
+  const customInput = document.getElementById('importDeptCustomInput');
+  if (customInput) {
+    customInput.style.display = val === 'custom' ? 'inline-block' : 'none';
+    if (val === 'custom') customInput.focus();
+  }
+}
+
+function getSelectedImportDept() {
+  const selectEl = document.getElementById('importDeptSelect');
+  if (!selectEl) return '自然科學科';
+  if (selectEl.value === 'custom') {
+    const customVal = document.getElementById('importDeptCustomInput')?.value.trim();
+    return customVal || '自訂科系';
+  }
+  return selectEl.value || '自然科學科';
+}
+
 async function processSelectedImport() {
   if (!selectedFiles.length) { toast('請先選擇要匯入的檔案', 'warning'); return; }
+  const targetDept = getSelectedImportDept();
   const btn = document.getElementById('startImportBtn');
   btn.disabled = true;
   const progressDiv = document.getElementById('importProgressArea');
@@ -867,7 +896,7 @@ async function processSelectedImport() {
   filesToProcess.forEach(f => {
     const modeLabel = currentImportMode === 'ppt-ai' ? 'Google Gemini AI 解析中...' : '固定格式驗證中...';
     progressItems.innerHTML += `<div class="progress-item" id="prog-${f.name.replace(/\W/g, '_')}">
-      <div class="pi-label"><span><i class="ti ti-file-text"></i> ${f.name} (${modeLabel})</span><span id="pct-${f.name.replace(/\W/g, '_')}">0%</span></div>
+      <div class="pi-label"><span><i class="ti ti-file-text"></i> ${f.name} (${modeLabel}) [${targetDept}]</span><span id="pct-${f.name.replace(/\W/g, '_')}">0%</span></div>
       <div class="progress-track"><div class="progress-fill" id="fill-${f.name.replace(/\W/g, '_')}" style="width:0%"></div></div>
     </div>`;
   });
@@ -876,12 +905,12 @@ async function processSelectedImport() {
   if (USE_API) {
     try {
       if (currentImportMode === 'fixed') {
-        await ImportAPI.uploadFixed(filesToProcess);
+        await ImportAPI.uploadFixed(filesToProcess, targetDept);
       } else {
         const subj = document.getElementById('pptImportSubject')?.value || '一般';
         const diff = document.getElementById('pptImportDifficulty')?.value || '中';
         const count = parseInt(document.getElementById('pptImportQuestionCount')?.value) || 5;
-        await ImportAPI.uploadPptAi(filesToProcess, subj, diff, count);
+        await ImportAPI.uploadPptAi(filesToProcess, targetDept, subj, diff, count);
       }
       const pendingRes = await ImportAPI.listPending();
       if (pendingRes && pendingRes.data) {
@@ -923,7 +952,11 @@ async function processSelectedImport() {
             switchImportStep('review');
             const totalPending = DB.pending.filter(p => p.status === 'pending').length;
             if (apiSuccess) {
-              toast(`解析成功！後端 API 已為您匯入 ${totalPending} 筆真實題目與解答`, 'success');
+              if (totalPending === 0) {
+                Modal.showError('未擷取出任何題目', '系統未能從上傳的 PDF 檔案中擷取出題目：', '請確認該 PDF 檔案是否包含選擇題與選項。AI 已被設定嚴禁自創題目，若未擷取成功將不會產生虛構資料。');
+              } else {
+                toast(`解析成功！後端 API 已為您匯入 ${totalPending} 筆真實題目與解答`, 'success');
+              }
             } else {
               toast(`目前為前端預覽模式。已載入 ${totalPending} 筆範例項目。請啟動 Spring Boot 後端即可解析真實 PDF/PPT！`, 'info');
             }
@@ -1168,17 +1201,42 @@ function renderPendingTable() {
 }
 
 async function confirmPending(id) {
-  await ImportAPI.confirm(id);
-  renderPendingTable();
-  toast('題目已確認並順利登錄至題庫！', 'success');
+  try {
+    await ImportAPI.confirm(id);
+    if (USE_API) {
+      const res = await ImportAPI.listPending();
+      if (res && res.data) DB.pending = res.data;
+    } else {
+      DB.pending = DB.pending.filter(p => p.id !== id);
+    }
+    renderPendingTable();
+    syncDashboard();
+    toast('題目已確認並順利登錄至題庫！', 'success');
+  } catch (e) {
+    console.error('確認題目失敗:', e);
+    toast('確認失敗：' + (e.message || e), 'error');
+  }
 }
 
 async function confirmAllPendingToBank() {
-  const list = DB.pending.filter(p => p.status === 'pending');
-  if (!list.length) { toast('目前沒有待確認的題目', 'warning'); return; }
-  const count = await ImportAPI.confirmAll();
-  renderPendingTable();
-  toast(`一鍵確認成功！已將 ${count} 筆題目登錄至題庫管理中`, 'success');
+  const pendingList = DB.pending.filter(p => p.status === 'pending');
+  if (!pendingList.length) { toast('目前沒有待確認的題目', 'warning'); return; }
+  try {
+    const res = await ImportAPI.confirmAll();
+    const count = (res && typeof res.data === 'number') ? res.data : pendingList.length;
+    if (USE_API) {
+      const pendingRes = await ImportAPI.listPending();
+      if (pendingRes && pendingRes.data) DB.pending = pendingRes.data;
+    } else {
+      DB.pending = DB.pending.filter(p => p.status !== 'pending');
+    }
+    renderPendingTable();
+    syncDashboard();
+    toast(`一鍵確認成功！已將 ${count} 筆題目登錄至題庫管理中`, 'success');
+  } catch (e) {
+    console.error('一鍵確認失敗:', e);
+    toast('批次確認失敗：' + (e.message || e), 'error');
+  }
 }
 
 function clearAllPendingRecords() {
@@ -1194,8 +1252,11 @@ function clearAllPendingRecords() {
         for (const item of list) {
           try { await ImportAPI.remove(item.id); } catch (e) { }
         }
+        const pendingRes = await ImportAPI.listPending();
+        if (pendingRes && pendingRes.data) DB.pending = pendingRes.data;
+      } else {
+        DB.pending = DB.pending.filter(p => p.status !== 'pending');
       }
-      DB.pending = DB.pending.filter(p => p.status !== 'pending');
       Modal.close();
       renderPendingTable();
       syncDashboard();
@@ -1213,12 +1274,12 @@ function editPending(id) {
     body: `
       <div class="form-group"><label>題目內容</label><textarea id="ep-content" rows="3">${p.content}</textarea></div>
       <div class="form-row">
-        <div class="form-group"><label>選項 A</label><input type="text" id="ep-a" value="${p.optA}"></div>
-        <div class="form-group"><label>選項 B</label><input type="text" id="ep-b" value="${p.optB}"></div>
+        <div class="form-group"><label>選項 A</label><input type="text" id="ep-a" value="${p.optA || p.optionA || ''}"></div>
+        <div class="form-group"><label>選項 B</label><input type="text" id="ep-b" value="${p.optB || p.optionB || ''}"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>選項 C</label><input type="text" id="ep-c" value="${p.optC}"></div>
-        <div class="form-group"><label>選項 D</label><input type="text" id="ep-d" value="${p.optD}"></div>
+        <div class="form-group"><label>選項 C</label><input type="text" id="ep-c" value="${p.optC || p.optionC || ''}"></div>
+        <div class="form-group"><label>選項 D</label><input type="text" id="ep-d" value="${p.optD || p.optionD || ''}"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>正確答案</label>
@@ -1246,11 +1307,22 @@ function editPending(id) {
         confidence: p.confidence
       };
       if (!data.content) { toast('題目內容不可空白', 'error'); return; }
-      await ImportAPI.update(id, data);
-      await ImportAPI.confirm(id);
-      Modal.close();
-      renderPendingTable();
-      toast('題目已修改並加入題庫', 'success');
+      try {
+        await ImportAPI.update(id, data);
+        await ImportAPI.confirm(id);
+        if (USE_API) {
+          const pendingRes = await ImportAPI.listPending();
+          if (pendingRes && pendingRes.data) DB.pending = pendingRes.data;
+        } else {
+          DB.pending = DB.pending.filter(p => p.id !== id);
+        }
+        Modal.close();
+        renderPendingTable();
+        syncDashboard();
+        toast('題目已修改並加入題庫', 'success');
+      } catch (e) {
+        toast('操作失敗：' + (e.message || e), 'error');
+      }
     }
   });
 }
@@ -1262,10 +1334,21 @@ function deletePending(id) {
     confirmText: '刪除',
     confirmClass: 'danger',
     async onConfirm() {
-      await ImportAPI.remove(id);
-      Modal.close();
-      renderPendingTable();
-      toast('待確認題目已刪除', 'warning');
+      try {
+        await ImportAPI.remove(id);
+        if (USE_API) {
+          const pendingRes = await ImportAPI.listPending();
+          if (pendingRes && pendingRes.data) DB.pending = pendingRes.data;
+        } else {
+          DB.pending = DB.pending.filter(p => p.id !== id);
+        }
+        Modal.close();
+        renderPendingTable();
+        syncDashboard();
+        toast('待確認題目已刪除', 'warning');
+      } catch (e) {
+        toast('刪除失敗：' + (e.message || e), 'error');
+      }
     }
   });
 }
@@ -1275,8 +1358,10 @@ function deletePending(id) {
    ============================================================ */
 let bankFilters = { dept: '', subject: '', unit: '', difficulty: '', keyword: '' };
 let bankPage = 1;
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
 let expandedQId = null;
+let bankViewMode = 'tree'; // 'tree' or 'list'
+let bankTreeState = {}; // { 'dept_xxx': true, 'subj_xxx': true, 'unit_xxx': true }
 
 async function initBankPanel() {
   if (USE_API) {
@@ -1286,101 +1371,806 @@ async function initBankPanel() {
   buildBankFilterOptions();
   renderBankPanel();
 
-  document.getElementById('bankSearch').addEventListener('input', debounce(() => {
-
+  document.getElementById('bankSearch')?.addEventListener('input', debounce(() => {
     bankFilters.keyword = document.getElementById('bankSearch').value.trim();
-    bankPage = 1; renderBankPanel();
+    bankPage = 1;
+    renderBankPanel();
   }, 300));
 
-  ['bankDept', 'bankSubject', 'bankUnit', 'bankDifficulty'].forEach(id => {
-    document.getElementById(id)?.addEventListener('change', () => {
-      bankFilters.dept = document.getElementById('bankDept').value;
-      bankFilters.subject = document.getElementById('bankSubject').value;
-      bankFilters.unit = document.getElementById('bankUnit').value;
-      bankFilters.difficulty = document.getElementById('bankDifficulty').value;
-      bankPage = 1; renderBankPanel();
-    });
+  document.getElementById('bankDifficulty')?.addEventListener('change', () => {
+    bankFilters.difficulty = document.getElementById('bankDifficulty').value;
+    bankPage = 1;
+    renderBankPanel();
   });
 
-  document.getElementById('bankAddBtn').addEventListener('click', openAddQuestionModal);
+  document.getElementById('bankAddBtn')?.addEventListener('click', openAddQuestionModal);
+}
+
+function switchBankViewMode(mode) {
+  bankViewMode = mode;
+  document.getElementById('vmTreeBtn')?.classList.toggle('active', mode === 'tree');
+  document.getElementById('vmListBtn')?.classList.toggle('active', mode === 'list');
+  document.getElementById('bankTreeView').style.display = mode === 'tree' ? 'block' : 'none';
+  document.getElementById('bankListView').style.display = mode === 'list' ? 'block' : 'none';
+  document.getElementById('treeActionBtns').style.display = mode === 'tree' ? 'flex' : 'none';
+  renderBankPanel();
+}
+
+function toggleBankTreeNode(key) {
+  if (bankTreeState[key] === undefined) {
+    bankTreeState[key] = false;
+  } else {
+    bankTreeState[key] = !bankTreeState[key];
+  }
+  renderBankPanel();
+}
+
+function isBankTreeNodeOpen(key, defaultVal = true) {
+  return bankTreeState[key] !== undefined ? bankTreeState[key] : defaultVal;
+}
+
+function expandAllBankTree(isOpen) {
+  const deptCards = document.querySelectorAll('#bankTreeView [data-tree-key]');
+  deptCards.forEach(el => {
+    const key = el.getAttribute('data-tree-key');
+    if (key) bankTreeState[key] = isOpen;
+  });
+  renderBankPanel();
 }
 
 function buildBankFilterOptions() {
-  const depts = [...new Set(DB.questions.map(q => q.dept))];
-  const subjects = [...new Set(DB.questions.map(q => q.subject))];
-  const units = [...new Set(DB.questions.map(q => q.unit))];
-  const diffs = ['易', '中', '難'];
+  const questions = DB.questions || [];
+  const depts = [...new Set(questions.map(q => q.dept || '自然科學科'))].filter(Boolean);
   fillSelect('bankDept', depts, '全部科系');
+  
+  onBankDeptChange(false);
+}
+
+function onBankDeptChange(shouldRender = true) {
+  const selectedDept = document.getElementById('bankDept')?.value || '';
+  bankFilters.dept = selectedDept;
+  
+  const questions = DB.questions || [];
+  let filtered = questions;
+  if (selectedDept) {
+    filtered = filtered.filter(q => (q.dept || '自然科學科') === selectedDept);
+  }
+  
+  const subjects = [...new Set(filtered.map(q => q.subject || '未分類'))].filter(Boolean);
   fillSelect('bankSubject', subjects, '全部科目');
+  
+  onBankSubjectChange(shouldRender);
+}
+
+function onBankSubjectChange(shouldRender = true) {
+  const selectedDept = document.getElementById('bankDept')?.value || '';
+  const selectedSubj = document.getElementById('bankSubject')?.value || '';
+  bankFilters.subject = selectedSubj;
+  
+  const questions = DB.questions || [];
+  let filtered = questions;
+  if (selectedDept) filtered = filtered.filter(q => (q.dept || '自然科學科') === selectedDept);
+  if (selectedSubj) filtered = filtered.filter(q => (q.subject || '未分類') === selectedSubj);
+  
+  const units = [...new Set(filtered.map(q => q.unit || '未分類'))].filter(Boolean);
   fillSelect('bankUnit', units, '全部單元');
-  fillSelect('bankDifficulty', diffs, '全部難度');
+  
+  bankFilters.unit = document.getElementById('bankUnit')?.value || '';
+  bankPage = 1;
+  if (shouldRender) renderBankPanel();
+}
+
+function onBankUnitChange() {
+  bankFilters.unit = document.getElementById('bankUnit')?.value || '';
+  bankPage = 1;
+  renderBankPanel();
+}
+
+function resetBankFilters() {
+  bankFilters = { dept: '', subject: '', unit: '', difficulty: '', keyword: '' };
+  ['bankDept', 'bankSubject', 'bankUnit', 'bankDifficulty'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const searchInput = document.getElementById('bankSearch');
+  if (searchInput) searchInput.value = '';
+  buildBankFilterOptions();
+  bankPage = 1;
+  renderBankPanel();
 }
 
 function fillSelect(id, options, placeholder) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.innerHTML = `<option value="">${placeholder}</option>` + options.map(o => `<option>${o}</option>`).join('');
+  const currentVal = el.value;
+  el.innerHTML = `<option value="">${placeholder}</option>` + options.map(o => `<option value="${o}">${o}</option>`).join('');
+  if (options.includes(currentVal)) {
+    el.value = currentVal;
+  } else {
+    el.value = '';
+  }
 }
 
 async function renderBankPanel() {
   const list = await QuestionAPI.list(bankFilters);
   const total = list.length;
-  const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
-  if (bankPage > totalPages) bankPage = totalPages;
-  const paged = list.slice((bankPage - 1) * PAGE_SIZE, bankPage * PAGE_SIZE);
-
+  
   document.getElementById('bankTotalCount').textContent = `共 ${total} 筆題目`;
-  const tbody = document.getElementById('bankTbody');
 
-  if (!paged.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--ink-mute);padding:28px;">查無符合條件的題目</td></tr>`;
-    document.getElementById('bankPagination').innerHTML = '';
-    return;
+  if (bankViewMode === 'tree') {
+    document.getElementById('bankTreeView').style.display = 'block';
+    document.getElementById('bankListView').style.display = 'none';
+    renderBankTree(list);
+  } else {
+    document.getElementById('bankTreeView').style.display = 'none';
+    document.getElementById('bankListView').style.display = 'block';
+    renderBankList(list);
   }
-
-  tbody.innerHTML = paged.map(q => {
-    const src = q.source === 'PDF匯入' ? 'pdf' : q.source === 'AI產生' || q.source === 'AI統整' ? 'ai' : 'manual';
-    const expanded = expandedQId === q.id;
-    return `
-      <tr class="q-main-row" style="cursor:pointer" onclick="toggleExpand(${q.id})">
-        <td><i class="ti ${expanded ? 'ti-chevron-down' : 'ti-chevron-right'}" style="font-size:13px;color:var(--ink-mute);margin-right:6px;"></i>${q.content.length > 50 ? q.content.slice(0, 50) + '…' : q.content}</td>
-        <td>${q.subject}</td>
-        <td>${q.unit}</td>
-        <td><span class="diff-badge ${q.difficulty}">${q.difficulty}</span></td>
-        <td><span class="tag ${src}">${q.source}</span></td>
-        <td class="row-actions">
-          <i class="ti ti-edit" title="編輯" onclick="event.stopPropagation();editQuestion(${q.id})"></i>
-          <i class="ti ti-trash" title="刪除" onclick="event.stopPropagation();deleteQuestion(${q.id})"></i>
-        </td>
-      </tr>
-      ${expanded ? `<tr class="q-expand-row"><td colspan="6"><div class="q-expand-content">
-        <div style="font-size:13px;font-weight:500;margin-bottom:8px;color:var(--ink);">${q.content}</div>
-        <div class="q-opts">
-          <div class="q-opt ${q.answer === 'A' ? 'correct' : ''}"><b>A.</b> ${q.optA} ${q.answer === 'A' ? '✓' : ''}</div>
-          <div class="q-opt ${q.answer === 'B' ? 'correct' : ''}"><b>B.</b> ${q.optB} ${q.answer === 'B' ? '✓' : ''}</div>
-          <div class="q-opt ${q.answer === 'C' ? 'correct' : ''}"><b>C.</b> ${q.optC} ${q.answer === 'C' ? '✓' : ''}</div>
-          <div class="q-opt ${q.answer === 'D' ? 'correct' : ''}"><b>D.</b> ${q.optD} ${q.answer === 'D' ? '✓' : ''}</div>
-        </div>
-      </div></td></tr>`: ''}
-    `;
-  }).join('');
-
-  // Pagination
-  let pgHtml = `<span class="page-info">第 ${(bankPage - 1) * PAGE_SIZE + 1}–${Math.min(bankPage * PAGE_SIZE, total)} 筆 / 共 ${total} 筆</span>`;
-  pgHtml += `<button class="page-btn" ${bankPage <= 1 ? 'disabled' : ''} onclick="bankGoPage(${bankPage - 1})"><i class="ti ti-chevron-left"></i></button>`;
-  for (let i = 1; i <= totalPages; i++) {
-    pgHtml += `<button class="page-btn ${i === bankPage ? 'active' : ''}" onclick="bankGoPage(${i})">${i}</button>`;
-  }
-  pgHtml += `<button class="page-btn" ${bankPage >= totalPages ? 'disabled' : ''} onclick="bankGoPage(${bankPage + 1})"><i class="ti ti-chevron-right"></i></button>`;
-  document.getElementById('bankPagination').innerHTML = pgHtml;
 }
 
-function toggleExpand(id) {
-  expandedQId = expandedQId === id ? null : id;
+function changeBankPage(newPage) {
+  bankPage = newPage;
   renderBankPanel();
 }
 
-function bankGoPage(p) { bankPage = p; expandedQId = null; renderBankPanel(); }
+function buildCompactPaginationHtml(currentPage, totalPages, callbackName) {
+  if (totalPages <= 1) return '';
+  let pages = [];
+  pages.push(1);
+  if (currentPage > 3) pages.push('...');
+  for (let p = Math.max(2, currentPage - 1); p <= Math.min(totalPages - 1, currentPage + 1); p++) {
+    pages.push(p);
+  }
+  if (currentPage < totalPages - 2) pages.push('...');
+  if (totalPages > 1) pages.push(totalPages);
+
+  return `
+    <div class="pagination-bar" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:16px;">
+      <button class="btn btn-sm btn-ghost" ${currentPage <= 1 ? 'disabled' : ''} onclick="${callbackName}(${currentPage - 1})"><i class="ti ti-chevron-left"></i> 上一頁</button>
+      ${pages.map(p => {
+        if (p === '...') return `<span style="padding:0 4px;color:var(--slate-400);">...</span>`;
+        return `<button class="btn btn-sm ${p === currentPage ? 'btn-primary' : 'btn-ghost'}" onclick="${callbackName}(${p})">${p}</button>`;
+      }).join('')}
+      <button class="btn btn-sm btn-ghost" ${currentPage >= totalPages ? 'disabled' : ''} onclick="${callbackName}(${currentPage + 1})">下一頁 <i class="ti ti-chevron-right"></i></button>
+    </div>
+  `;
+}
+
+function renderQuestionRow(q, showSubj = true) {
+  const isExpanded = expandedQId === q.id;
+  const optCols = [
+    { label: 'A', text: q.optA },
+    { label: 'B', text: q.optB },
+    { label: 'C', text: q.optC },
+    { label: 'D', text: q.optD }
+  ];
+
+  return `
+    <tr class="q-row ${isExpanded ? 'expanded' : ''}" onclick="toggleQExpand(${q.id})">
+      ${showSubj ? `
+        <td><span class="badge badge-dept" style="background:var(--teal-50);color:var(--teal-700);padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;"><i class="ti ti-school" style="margin-right:2px;"></i>${escapeHtml(q.dept || '自然科學科')}</span></td>
+        <td><span class="badge badge-primary">${escapeHtml(q.subject || '未分類')}</span><br><small style="color:var(--slate-500);">${escapeHtml(q.unit || '未分類')}</small></td>
+      ` : ''}
+      <td>
+        <div class="q-content-text">${escapeHtml(q.content)}</div>
+        ${isExpanded ? `
+          <div class="q-expand-box" style="margin-top:8px;padding:8px;background:var(--slate-50);border-radius:6px;">
+            <div class="q-options-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
+              ${optCols.map(o => `
+                <div class="q-opt-item ${q.answer && q.answer.includes(o.label) ? 'correct' : ''}" style="padding:4px 8px;border-radius:4px;background:white;border:1px solid var(--slate-200);">
+                  <strong style="color:var(--teal-600);">${o.label}.</strong> ${escapeHtml(o.text || '')}
+                </div>
+              `).join('')}
+            </div>
+            <div class="q-meta-info" style="margin-top:8px;font-size:12px;color:var(--slate-500);">
+              <span>正確答案：<strong style="color:var(--emerald-600);">${escapeHtml(q.answer || 'A')}</strong></span>
+            </div>
+          </div>
+        ` : ''}
+      </td>
+      <td><span class="badge badge-diff diff-${q.difficulty}">${escapeHtml(q.difficulty || '中')}</span></td>
+      <td><span class="source-tag">${escapeHtml(q.source || '手動')}</span></td>
+      <td style="text-align:right;" onclick="event.stopPropagation();">
+        <button class="btn btn-sm btn-secondary" onclick="editQuestion(${q.id})" title="編輯題目"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-sm btn-ghost danger" onclick="deleteQuestion(${q.id})" title="刪除題目"><i class="ti ti-trash"></i></button>
+      </td>
+    </tr>
+  `;
+}
+
+function renderBankList(list) {
+  const container = document.getElementById('bankListView');
+  if (!container) return;
+
+  if (!list.length) {
+    container.innerHTML = `<div class="placeholder-card"><i class="ti ti-search-off"></i>查無符合條件的題目，請重新設定搜尋或篩選條件。</div>`;
+    const pagEl = document.getElementById('bankPagination');
+    if (pagEl) pagEl.innerHTML = '';
+    return;
+  }
+
+  const pageSize = 10;
+  const totalPages = Math.ceil(list.length / pageSize);
+  if (bankPage > totalPages) bankPage = totalPages;
+  if (bankPage < 1) bankPage = 1;
+
+  const startIdx = (bankPage - 1) * pageSize;
+  const pageList = list.slice(startIdx, startIdx + pageSize);
+
+  let html = `
+    <table>
+      <thead>
+        <tr>
+          <th>科系</th>
+          <th>科目/單元</th>
+          <th style="width:45%">題目內容</th>
+          <th>難度</th>
+          <th>來源</th>
+          <th style="text-align:right;">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${pageList.map(q => renderQuestionRow(q, true)).join('')}
+      </tbody>
+    </table>
+  `;
+
+  container.innerHTML = html;
+
+  const pageEl = document.getElementById('bankPagination');
+  if (pageEl) {
+    pageEl.innerHTML = buildCompactPaginationHtml(bankPage, totalPages, 'changeBankPage');
+  }
+}
+
+function renderBankTree(list) {
+  const container = document.getElementById('bankTreeView');
+  if (!container) return;
+
+  if (!list.length) {
+    container.innerHTML = `<div class="placeholder-card"><i class="ti ti-search-off"></i>查無符合條件的題目，請重新設定搜尋或篩選條件。</div>`;
+    return;
+  }
+
+  // 建立三層結構：科系 (dept) -> 科目 (subject) -> 單元 (unit) -> Question[]
+  const treeMap = {};
+  list.forEach(q => {
+    const dept = q.dept || '自然科學科';
+    const subj = q.subject || '未分類';
+    const unit = q.unit || '未分類';
+
+    if (!treeMap[dept]) treeMap[dept] = {};
+    if (!treeMap[dept][subj]) treeMap[dept][subj] = {};
+    if (!treeMap[dept][subj][unit]) treeMap[dept][subj][unit] = [];
+
+    treeMap[dept][subj][unit].push(q);
+  });
+
+  let html = '';
+  Object.keys(treeMap).forEach(deptKey => {
+    const deptData = treeMap[deptKey];
+    let deptTotalCount = 0;
+    Object.values(deptData).forEach(sData => {
+      Object.values(sData).forEach(qArr => deptTotalCount += qArr.length);
+    });
+
+    const deptTreeKey = `dept_${deptKey}`;
+    const isDeptOpen = isBankTreeNodeOpen(deptTreeKey, true);
+
+    html += `
+      <div class="tree-dept-card" data-drop-dept="${escapeHtml(deptKey)}">
+        <div class="tree-dept-header ${isDeptOpen ? 'open' : ''}" data-tree-key="${deptTreeKey}" onclick="toggleBankTreeNode('${deptTreeKey}')">
+          <div class="tree-dept-title">
+            <i class="ti ${isDeptOpen ? 'ti-chevron-down' : 'ti-chevron-right'} toggle-icon"></i>
+            <i class="ti ti-school dept-icon"></i>
+            <span>${escapeHtml(deptKey)}</span>
+            <i class="ti ti-edit" style="margin-left:6px;font-size:14px;color:var(--teal-600);cursor:pointer;" title="重命名/修改科系名稱" onclick="event.stopPropagation();renameHierarchyNode('dept', '${escapeHtml(deptKey)}')"></i>
+          </div>
+          <span class="tree-badge dept-badge"><i class="ti ti-files" style="margin-right:4px;"></i>${deptTotalCount} 題</span>
+        </div>
+        ${isDeptOpen ? `<div class="tree-dept-content">
+          ${Object.keys(deptData).map(subjKey => {
+            const subjData = deptData[subjKey];
+            let subjTotalCount = 0;
+            Object.values(subjData).forEach(qArr => subjTotalCount += qArr.length);
+
+            const subjTreeKey = `subj_${deptKey}_${subjKey}`;
+            const isSubjOpen = isBankTreeNodeOpen(subjTreeKey, true);
+
+            return `
+              <div class="tree-subject-box" data-drop-dept="${escapeHtml(deptKey)}" data-drop-subject="${escapeHtml(subjKey)}">
+                <div class="tree-subject-header ${isSubjOpen ? 'open' : ''}" draggable="true" data-drag-type="subject" data-drag-dept="${escapeHtml(deptKey)}" data-drag-name="${escapeHtml(subjKey)}" data-tree-key="${subjTreeKey}" onclick="event.stopPropagation();toggleBankTreeNode('${subjTreeKey}')">
+                  <div class="tree-subject-title">
+                    <i class="ti ${isSubjOpen ? 'ti-chevron-down' : 'ti-chevron-right'} toggle-icon"></i>
+                    <i class="ti ti-book subj-icon"></i>
+                    <span>${escapeHtml(subjKey)}</span>
+                    <i class="ti ti-edit" style="margin-left:6px;font-size:13px;color:var(--blue-600);cursor:pointer;" title="重命名/修改科目名稱" onclick="event.stopPropagation();renameHierarchyNode('subject', '${escapeHtml(subjKey)}', '${escapeHtml(deptKey)}')"></i>
+                    <span class="drag-hint-tag"><i class="ti ti-grip-vertical"></i>可拖曳</span>
+                  </div>
+                  <span class="tree-badge subj-badge">${subjTotalCount} 題</span>
+                </div>
+                ${isSubjOpen ? `<div class="tree-subject-content">
+                  ${Object.keys(subjData).map(unitKey => {
+                    const qList = subjData[unitKey];
+                    const unitTreeKey = `unit_${deptKey}_${subjKey}_${unitKey}`;
+                    const isUnitOpen = isBankTreeNodeOpen(unitTreeKey, true);
+
+                    return `
+                      <div class="tree-unit-box">
+                        <div class="tree-unit-header ${isUnitOpen ? 'open' : ''}" draggable="true" data-drag-type="unit" data-drag-dept="${escapeHtml(deptKey)}" data-drag-subject="${escapeHtml(subjKey)}" data-drag-name="${escapeHtml(unitKey)}" data-tree-key="${unitTreeKey}" onclick="event.stopPropagation();toggleBankTreeNode('${unitTreeKey}')">
+                          <div class="tree-unit-title">
+                            <i class="ti ${isUnitOpen ? 'ti-chevron-down' : 'ti-chevron-right'} toggle-icon"></i>
+                            <i class="ti ti-bookmark unit-icon"></i>
+                            <span>${escapeHtml(unitKey)}</span>
+                            <i class="ti ti-edit" style="margin-left:6px;font-size:13px;color:var(--teal-600);cursor:pointer;" title="重命名/修改單元名稱" onclick="event.stopPropagation();renameHierarchyNode('unit', '${escapeHtml(unitKey)}', '${escapeHtml(deptKey)}', '${escapeHtml(subjKey)}')"></i>
+                            <span class="drag-hint-tag"><i class="ti ti-grip-vertical"></i>可拖曳</span>
+                          </div>
+                          <span class="tree-badge unit-badge">${qList.length} 題</span>
+                        </div>
+                        ${isUnitOpen ? `<div class="tree-unit-content" style="padding:0;overflow:auto;">
+                          <table>
+                            <thead><tr><th style="width:55%">題目內容</th><th>難度</th><th>來源</th><th style="text-align:right;">操作</th></tr></thead>
+                            <tbody>
+                              ${qList.map(q => renderQuestionRow(q, false)).join('')}
+                            </tbody>
+                          </table>
+                        </div>` : ''}
+                      </div>
+                    `;
+                  }).join('')}
+                </div>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>` : ''}
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  initTreeDragDrop();
+}
+
+/* ── 拖曳轉移 (Drag & Drop) 基礎設施 ── */
+let _treeDragInfo = null;
+
+function initTreeDragDrop() {
+  const container = document.getElementById('bankTreeView');
+  if (!container) return;
+
+  // 可拖曳元素 (科目 header / 單元 header)
+  container.querySelectorAll('[draggable="true"]').forEach(el => {
+    el.addEventListener('dragstart', onTreeDragStart);
+    el.addEventListener('dragend', onTreeDragEnd);
+  });
+
+  // 放置目標 (科系 card / 科目 box)
+  container.querySelectorAll('.tree-dept-card[data-drop-dept]').forEach(el => {
+    el.addEventListener('dragover', onTreeDragOver);
+    el.addEventListener('dragleave', onTreeDragLeave);
+    el.addEventListener('drop', onTreeDrop);
+  });
+  container.querySelectorAll('.tree-subject-box[data-drop-subject]').forEach(el => {
+    el.addEventListener('dragover', onTreeDragOver);
+    el.addEventListener('dragleave', onTreeDragLeave);
+    el.addEventListener('drop', onTreeDrop);
+  });
+}
+
+function onTreeDragStart(e) {
+  const el = e.currentTarget;
+  _treeDragInfo = {
+    type: el.dataset.dragType,       // 'subject' or 'unit'
+    name: el.dataset.dragName,       // 科目名或單元名
+    dept: el.dataset.dragDept,       // 來源科系
+    subject: el.dataset.dragSubject || ''  // 來源科目 (unit 才有)
+  };
+  el.classList.add('tree-dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', JSON.stringify(_treeDragInfo));
+  // 避免 click 事件被觸發 (toggle)
+  e.stopPropagation();
+}
+
+function onTreeDragEnd(e) {
+  e.currentTarget.classList.remove('tree-dragging');
+  // 清除所有 drag-over 高亮
+  document.querySelectorAll('.tree-drag-over').forEach(el => el.classList.remove('tree-drag-over'));
+  _treeDragInfo = null;
+}
+
+function onTreeDragOver(e) {
+  if (!_treeDragInfo) return;
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer.dropEffect = 'move';
+
+  const dropTarget = e.currentTarget;
+  const dropDept = dropTarget.dataset.dropDept || '';
+  const dropSubj = dropTarget.dataset.dropSubject || '';
+
+  // 判斷是否為合法放置
+  if (_treeDragInfo.type === 'subject') {
+    // 科目只能放到科系 (不能放到科目)
+    if (dropSubj) return; // 放到科目區 — 不合法
+    if (dropDept === _treeDragInfo.dept) return; // 放到原科系 — 無變化
+  } else if (_treeDragInfo.type === 'unit') {
+    // 單元可以放到科系 (跨科系) 或科目 (跨科目)
+    if (dropDept === _treeDragInfo.dept && dropSubj === _treeDragInfo.subject) return; // 原位
+    if (!dropSubj && dropDept === _treeDragInfo.dept) return; // 放到同科系頂層 — 沒意義
+  }
+
+  dropTarget.classList.add('tree-drag-over');
+}
+
+function onTreeDragLeave(e) {
+  e.currentTarget.classList.remove('tree-drag-over');
+}
+
+function onTreeDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.remove('tree-drag-over');
+
+  if (!_treeDragInfo) return;
+
+  const dropDept = e.currentTarget.dataset.dropDept || '';
+  const dropSubj = e.currentTarget.dataset.dropSubject || '';
+
+  const dragInfo = { ..._treeDragInfo };
+  _treeDragInfo = null;
+
+  // 清除所有 dragging 樣式
+  document.querySelectorAll('.tree-dragging').forEach(el => el.classList.remove('tree-dragging'));
+
+  // 判斷是否有實質變化
+  if (dragInfo.type === 'subject') {
+    if (!dropSubj && dropDept && dropDept !== dragInfo.dept) {
+      showTransferConfirmModal(dragInfo, { dept: dropDept, subject: '' });
+    }
+  } else if (dragInfo.type === 'unit') {
+    if (dropDept === dragInfo.dept && dropSubj === dragInfo.subject) return;
+    if (!dropSubj && dropDept === dragInfo.dept) return;
+    showTransferConfirmModal(dragInfo, { dept: dropDept, subject: dropSubj });
+  }
+}
+
+function showTransferConfirmModal(dragInfo, dropInfo) {
+  const isDraggingSubject = dragInfo.type === 'subject';
+  const dragLabel = isDraggingSubject ? '科目' : '單元';
+
+  if (isDraggingSubject) {
+    // ── 科目轉移：只有確認，不需要選「複製」
+    const bodyHtml = `
+      <div style="text-align:center;padding:8px 0;">
+        <div style="font-size:42px;margin-bottom:12px;">⚠️</div>
+        <div style="font-size:15.5px;font-weight:600;color:var(--ink);margin-bottom:12px;">確認轉移科目</div>
+        <div style="font-size:13.5px;color:var(--ink-soft);line-height:1.8;text-align:left;padding:0 8px;">
+          您即將把科目 <strong style="color:var(--blue-700);">【${escapeHtml(dragInfo.name)}】</strong>
+          （含所有單元與試題）<br>
+          從 <strong style="color:var(--teal-700);">【${escapeHtml(dragInfo.dept)}】</strong>
+          轉移至 <strong style="color:var(--teal-700);">【${escapeHtml(dropInfo.dept)}】</strong>。
+        </div>
+        <div style="background:var(--amber-50);border-left:3px solid var(--amber-500);padding:10px 14px;border-radius:6px;font-size:12.5px;color:var(--amber-900);line-height:1.6;margin-top:16px;text-align:left;">
+          <strong><i class="ti ti-alert-triangle"></i> 注意：</strong>此操作會將該科目下的<strong>全部單元與試題</strong>一起轉移至目標科系，原科系中將不再保留此科目。
+        </div>
+      </div>
+    `;
+    Modal.open({
+      title: '確認轉移科目',
+      body: bodyHtml,
+      confirmText: '確定轉移',
+      confirmClass: 'primary',
+      async onConfirm() {
+        Modal.close();
+        await executeTransfer('subject', dragInfo.name, dragInfo.dept, '', dropInfo.dept, '');
+      }
+    });
+  } else {
+    // ── 單元轉移：提供「轉移」與「複製」兩個選項
+    const targetLabel = dropInfo.subject
+      ? `科目【${escapeHtml(dropInfo.subject)}】（科系：${escapeHtml(dropInfo.dept)}）`
+      : `科系【${escapeHtml(dropInfo.dept)}】`;
+
+    const bodyHtml = `
+      <div style="padding:4px 0;">
+        <div style="text-align:center;margin-bottom:14px;">
+          <div style="font-size:42px;margin-bottom:8px;">⚠️</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink);">轉移或複製單元</div>
+        </div>
+        <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin-bottom:16px;">
+          您將 <strong style="color:var(--teal-700);">【${escapeHtml(dragInfo.name)}】</strong> 從
+          <strong>【${escapeHtml(dragInfo.subject)}】</strong>（${escapeHtml(dragInfo.dept)}）
+          移動到 <strong style="color:var(--blue-700);">${targetLabel}</strong>。<br>
+          請選擇操作方式：
+        </div>
+        <div class="transfer-mode-options">
+          <label class="transfer-mode-option selected" onclick="selectTransferMode(this, 'transfer')">
+            <input type="radio" name="transferMode" value="transfer" checked>
+            <i class="ti ti-transfer mode-icon" style="color:var(--blue-600);"></i>
+            <div>
+              <div class="mode-label">轉移</div>
+              <div class="mode-desc">將此單元從原科目中移走，放到目標位置。原科目下將不再保留此單元。</div>
+            </div>
+          </label>
+          <label class="transfer-mode-option" onclick="selectTransferMode(this, 'copy')">
+            <input type="radio" name="transferMode" value="copy">
+            <i class="ti ti-copy mode-icon" style="color:var(--slate-500);"></i>
+            <div>
+              <div class="mode-label">複製</div>
+              <div class="mode-desc">保留原位置的單元，並在目標位置建立一份副本（所有試題會被複製為新題目）。</div>
+            </div>
+          </label>
+        </div>
+      </div>
+    `;
+    Modal.open({
+      title: '轉移或複製單元',
+      body: bodyHtml,
+      confirmText: '確定執行',
+      confirmClass: 'primary',
+      async onConfirm() {
+        const mode = document.querySelector('input[name="transferMode"]:checked')?.value || 'transfer';
+        Modal.close();
+        if (mode === 'transfer') {
+          await executeTransfer('unit', dragInfo.name, dragInfo.dept, dragInfo.subject, dropInfo.dept, dropInfo.subject);
+        } else {
+          await executeCopy(dragInfo.name, dragInfo.dept, dragInfo.subject, dropInfo.dept, dropInfo.subject);
+        }
+      }
+    });
+  }
+}
+
+function selectTransferMode(label, mode) {
+  document.querySelectorAll('.transfer-mode-option').forEach(el => el.classList.remove('selected'));
+  label.classList.add('selected');
+  label.querySelector('input[type="radio"]').checked = true;
+}
+
+async function executeTransfer(type, name, sourceDept, sourceSubj, targetDept, targetSubj) {
+  try {
+    if (USE_API) {
+      await apiFetch('PUT', '/questions/batch-rename', {
+        type: type,
+        oldName: name,
+        newName: name,       // 名稱不變
+        dept: sourceDept,
+        subject: sourceSubj,
+        targetDept: targetDept,
+        targetSubj: targetSubj || ''
+      });
+      const all = await QuestionAPI.list({});
+      DB.questions = all;
+    } else {
+      DB.questions.forEach(q => {
+        let match = false;
+        if (type === 'subject' && q.subject === name && q.dept === sourceDept) match = true;
+        if (type === 'unit' && q.unit === name && q.subject === sourceSubj && q.dept === sourceDept) match = true;
+        if (match) {
+          if (targetDept) q.dept = targetDept;
+          if (targetSubj) q.subject = targetSubj;
+        }
+      });
+    }
+    buildBankFilterOptions();
+    renderBankPanel();
+    const typeLabel = type === 'subject' ? '科目' : '單元';
+    toast(`已成功將${typeLabel}【${name}】轉移至【${targetDept}${targetSubj ? ' / ' + targetSubj : ''}】！`, 'success');
+  } catch (err) {
+    toast(`轉移失敗：${err.message || err}`, 'error');
+  }
+}
+
+async function executeCopy(unitName, sourceDept, sourceSubj, targetDept, targetSubj) {
+  try {
+    if (USE_API) {
+      await apiFetch('POST', '/questions/batch-copy-unit', {
+        unitName: unitName,
+        sourceDept: sourceDept,
+        sourceSubj: sourceSubj,
+        targetDept: targetDept,
+        targetSubj: targetSubj || ''
+      });
+      const all = await QuestionAPI.list({});
+      DB.questions = all;
+    } else {
+      const copies = [];
+      DB.questions.forEach(q => {
+        if (q.unit === unitName && q.subject === sourceSubj && q.dept === sourceDept) {
+          copies.push({
+            ...q,
+            id: Date.now() + Math.random(),
+            dept: targetDept || q.dept,
+            subject: targetSubj || q.subject
+          });
+        }
+      });
+      DB.questions.push(...copies);
+    }
+    buildBankFilterOptions();
+    renderBankPanel();
+    toast(`已成功將單元【${unitName}】複製至【${targetDept}${targetSubj ? ' / ' + targetSubj : ''}】！`, 'success');
+  } catch (err) {
+    toast(`複製失敗：${err.message || err}`, 'error');
+  }
+}
+
+async function renameHierarchyNode(type, oldName, dept = '', subject = '') {
+  const typeLabel = type === 'dept' ? '科系' : type === 'subject' ? '科目' : '單元';
+  
+  // 收集現有的所有科系與科目
+  const depts = [...new Set(DB.questions.map(q => q.dept || '自然科學科'))].filter(Boolean);
+  const subjs = [...new Set(DB.questions.map(q => q.subject || '未分類'))].filter(Boolean);
+
+  const deptOptionsHtml = depts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+  const subjOptionsHtml = subjs.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+
+  let bodyHtml = '';
+
+  if (type === 'dept') {
+    bodyHtml = `
+      <div class="form-group">
+        <label>目前【科系】名稱</label>
+        <input type="text" value="${escapeHtml(oldName)}" disabled style="background:var(--slate-100);">
+      </div>
+      <div class="form-group">
+        <label>全新【科系】名稱 *</label>
+        <input type="text" id="bm-new-name" value="${escapeHtml(oldName)}" placeholder="請輸入新科系名稱">
+      </div>
+      <p style="font-size:12px;color:var(--slate-500);line-height:1.6;margin-top:8px;">
+        💡 提示：修改科系名稱將會同步更新屬於【${escapeHtml(oldName)}】科系下的所有試題。
+      </p>
+    `;
+  } else if (type === 'subject') {
+    bodyHtml = `
+      <div class="form-group">
+        <label>修改【科目】名稱</label>
+        <input type="text" id="bm-new-name" value="${escapeHtml(oldName)}" placeholder="請輸入科目名稱">
+      </div>
+      <div class="form-group">
+        <label>將整個科目轉移至其他【科系】 (更換歸屬科系)</label>
+        <select id="bm-target-dept" onchange="onBmDeptSelectChange()">
+          <option value="">-- 保持原科系 (${escapeHtml(dept || '原科系')}) --</option>
+          ${deptOptionsHtml}
+          <option value="__CUSTOM__">+ 手動輸入全新科系...</option>
+        </select>
+        <input type="text" id="bm-custom-dept" style="display:none;margin-top:6px;" placeholder="請輸入全新目標科系名稱">
+      </div>
+      <div style="background:var(--amber-50);border-left:3px solid var(--amber-500);padding:8px 12px;border-radius:4px;font-size:12.5px;color:var(--amber-900);line-height:1.6;margin-top:8px;">
+        <strong><i class="ti ti-arrows-left-right"></i> 批次跨科系轉移說明：</strong><br>
+        若您選擇了全新的【歸屬科系】，隸屬於【${escapeHtml(oldName)}】科目的<strong>所有試題（包含該科目下的所有單元）</strong>將會一次性全數移至目標科系！
+      </div>
+    `;
+  } else if (type === 'unit') {
+    bodyHtml = `
+      <div class="form-group">
+        <label>修改【單元】名稱</label>
+        <input type="text" id="bm-new-name" value="${escapeHtml(oldName)}" placeholder="請輸入單元名稱">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>轉移至其他【科系】</label>
+          <select id="bm-target-dept" onchange="onBmDeptSelectChange()">
+            <option value="">-- 保持原科系 (${escapeHtml(dept || '原科系')}) --</option>
+            ${deptOptionsHtml}
+            <option value="__CUSTOM__">+ 手動輸入全新科系...</option>
+          </select>
+          <input type="text" id="bm-custom-dept" style="display:none;margin-top:6px;" placeholder="請輸入全新目標科系名稱">
+        </div>
+        <div class="form-group">
+          <label>轉移至其他【科目】</label>
+          <select id="bm-target-subj" onchange="onBmSubjSelectChange()">
+            <option value="">-- 保持原科目 (${escapeHtml(subject || '原科目')}) --</option>
+            ${subjOptionsHtml}
+            <option value="__CUSTOM__">+ 手動輸入全新科目...</option>
+          </select>
+          <input type="text" id="bm-custom-subj" style="display:none;margin-top:6px;" placeholder="請輸入全新目標科目名稱">
+        </div>
+      </div>
+      <div style="background:var(--teal-50);border-left:3px solid var(--teal-500);padding:8px 12px;border-radius:4px;font-size:12.5px;color:var(--teal-900);line-height:1.6;margin-top:8px;">
+        <strong><i class="ti ti-arrows-left-right"></i> 批次跨科系/科目轉移說明：</strong><br>
+        選擇新科系或新科目後，隸屬於【${escapeHtml(oldName)}】單元的所有試題將一次性全數轉移至指定的科系與科目下。
+      </div>
+    `;
+  }
+
+  Modal.open({
+    title: `編輯${typeLabel}與批次分類轉移`,
+    body: bodyHtml,
+    confirmText: '確定更新並轉移',
+    async onConfirm() {
+      const newNameEl = document.getElementById('bm-new-name');
+      const targetDeptSelect = document.getElementById('bm-target-dept');
+      const customDeptInput = document.getElementById('bm-custom-dept');
+      const targetSubjSelect = document.getElementById('bm-target-subj');
+      const customSubjInput = document.getElementById('bm-custom-subj');
+
+      let newName = newNameEl ? newNameEl.value.trim() : oldName;
+      let targetDept = '';
+      let targetSubj = '';
+
+      if (targetDeptSelect) {
+        if (targetDeptSelect.value === '__CUSTOM__') {
+          targetDept = customDeptInput ? customDeptInput.value.trim() : '';
+        } else {
+          targetDept = targetDeptSelect.value;
+        }
+      }
+
+      if (targetSubjSelect) {
+        if (targetSubjSelect.value === '__CUSTOM__') {
+          targetSubj = customSubjInput ? customSubjInput.value.trim() : '';
+        } else {
+          targetSubj = targetSubjSelect.value;
+        }
+      }
+
+      if (!newName) newName = oldName;
+
+      if (USE_API) {
+        try {
+          await apiFetch('PUT', '/questions/batch-rename', {
+            type: type,
+            oldName: oldName,
+            newName: newName,
+            dept: dept,
+            subject: subject,
+            targetDept: targetDept,
+            targetSubj: targetSubj
+          });
+          const all = await QuestionAPI.list({});
+          DB.questions = all;
+          Modal.close();
+          buildBankFilterOptions();
+          renderBankPanel();
+          toast(`已成功更新【${typeLabel}】名稱與轉移歸屬分類！`, 'success');
+        } catch (err) {
+          toast(`更新失敗：${err.message || err}`, 'error');
+        }
+      } else {
+        let count = 0;
+        DB.questions.forEach(q => {
+          let match = false;
+          if (type === 'dept' && q.dept === oldName) match = true;
+          if (type === 'subject' && q.subject === oldName && (!dept || q.dept === dept)) match = true;
+          if (type === 'unit' && q.unit === oldName && (!subject || q.subject === subject)) match = true;
+
+          if (match) {
+            if (newName) {
+              if (type === 'dept') q.dept = newName;
+              else if (type === 'subject') q.subject = newName;
+              else if (type === 'unit') q.unit = newName;
+            }
+            if (targetDept) q.dept = targetDept;
+            if (targetSubj) q.subject = targetSubj;
+            count++;
+          }
+        });
+        Modal.close();
+        buildBankFilterOptions();
+        renderBankPanel();
+        toast(`已成功批次更新 ${count} 筆題目的科系與分類歸屬！`, 'success');
+      }
+    }
+  });
+}
+
+function onBmDeptSelectChange() {
+  const el = document.getElementById('bm-target-dept');
+  const customInput = document.getElementById('bm-custom-dept');
+  if (el && customInput) {
+    customInput.style.display = el.value === '__CUSTOM__' ? 'block' : 'none';
+  }
+}
+
+function onBmSubjSelectChange() {
+  const el = document.getElementById('bm-target-subj');
+  const customInput = document.getElementById('bm-custom-subj');
+  if (el && customInput) {
+    customInput.style.display = el.value === '__CUSTOM__' ? 'block' : 'none';
+  }
+}
 
 function questionModalForm(q = null) {
   return `
@@ -1411,9 +2201,10 @@ function questionModalForm(q = null) {
       </div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>科目</label><input type="text" id="qm-subj" value="${q ? q.subject : ''}" placeholder="例：物理"></div>
-      <div class="form-group"><label>單元</label><input type="text" id="qm-unit" value="${q ? q.unit : ''}" placeholder="例：力學"></div>
-    </div>`;
+      <div class="form-group"><label>歸屬科系 (Department)</label><input type="text" id="qm-dept" value="${q ? (q.dept || '自然科學科') : '自然科學科'}" placeholder="例：資訊工程科系"></div>
+      <div class="form-group"><label>歸屬科目 (Subject)</label><input type="text" id="qm-subj" value="${q ? q.subject : ''}" placeholder="例：電腦軟體應用 乙級"></div>
+    </div>
+    <div class="form-group"><label>歸屬單元 (Unit)</label><input type="text" id="qm-unit" value="${q ? q.unit : ''}" placeholder="例：工作項目 01：電腦概論"></div>`;
 }
 
 function getQFormData() {
@@ -1425,9 +2216,9 @@ function getQFormData() {
     optD: document.getElementById('qm-d').value.trim(),
     answer: document.getElementById('qm-ans').value,
     difficulty: document.getElementById('qm-diff').value,
+    dept: document.getElementById('qm-dept').value.trim() || '自然科學科',
     subject: document.getElementById('qm-subj').value.trim() || '未分類',
     unit: document.getElementById('qm-unit').value.trim() || '未分類',
-    dept: '自然科學科',
     source: '教師手動'
   };
 }

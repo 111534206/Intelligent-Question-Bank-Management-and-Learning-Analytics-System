@@ -32,8 +32,8 @@ public class Question {
     @Column(name = "option_d", length = 500)
     private String optionD;
 
-    @Pattern(regexp = "[ABCD]", message = "答案必須為 A、B、C 或 D")
-    @Column(length = 1)
+    @Pattern(regexp = "[A-D,\\s]*", message = "答案必須由 A、B、C 或 D 組成")
+    @Column(length = 50)
     private String answer;
 
     @Column(length = 50)

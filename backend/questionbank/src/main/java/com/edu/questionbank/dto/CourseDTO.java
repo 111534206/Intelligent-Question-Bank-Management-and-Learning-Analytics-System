@@ -19,6 +19,7 @@ public class CourseDTO {
     private String classGroup;
     private String teacher;
     private String createdAt;
+    private String status;
     private int studentCount;
     private List<CourseStudentDTO> students = new ArrayList<>();
 
@@ -46,6 +47,8 @@ public class CourseDTO {
     public void setTeacher(String teacher) { this.teacher = teacher; }
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
     public int getStudentCount() { return studentCount; }
     public void setStudentCount(int studentCount) { this.studentCount = studentCount; }
     public List<CourseStudentDTO> getStudents() { return students; }

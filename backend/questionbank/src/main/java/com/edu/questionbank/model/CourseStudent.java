@@ -1,6 +1,5 @@
 package com.edu.questionbank.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -8,7 +7,7 @@ import java.time.LocalDateTime;
  * 課程修課學生實體 — 對應 course_students 表
  */
 @Entity
-@Table(name = "course_students")
+@Table(name = "qb_course_students")
 public class CourseStudent {
 
     @Id
@@ -17,7 +16,6 @@ public class CourseStudent {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
-    @JsonBackReference
     private Course course;
 
     @Column(name = "student_no", length = 50, nullable = false)
