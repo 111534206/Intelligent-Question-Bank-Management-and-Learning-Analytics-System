@@ -8,6 +8,8 @@ import jakarta.validation.constraints.Pattern;
  */
 public class QuestionDTO {
 
+    private Long id;
+
     @NotBlank(message = "題目內容不可空白")
     private String content;
 
@@ -33,6 +35,9 @@ public class QuestionDTO {
     private String source;     // 來源類型
 
     // ── Getters & Setters ──────────────────────────────────────
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }

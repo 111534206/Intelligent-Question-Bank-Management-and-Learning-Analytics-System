@@ -48,6 +48,49 @@ try {
   if (c) savedCourses = JSON.parse(c);
 } catch (e) { }
 
+let defaultPapers = [
+  {
+    id: 1,
+    name: "高二基礎物理 — 第 1 次段考模擬試卷",
+    subject: "物理",
+    department: "自然科學科",
+    startTime: new Date(Date.now() - 3600 * 1000 * 2).toISOString().slice(0, 16),
+    endTime: new Date(Date.now() + 3600 * 1000 * 24 * 5).toISOString().slice(0, 16),
+    targetAudience: "ALL",
+    showScoreImmediately: true,
+    showAnswerImmediately: true,
+    showRankImmediately: true,
+    questionIds: "1,2",
+    questionCount: 2,
+    durationMinutes: 30,
+    createdBy: "王老師",
+    createdAt: "2026-09-08"
+  },
+  {
+    id: 2,
+    name: "演算法與程式設計 — 隨堂評量（忠班專用）",
+    subject: "程式設計",
+    department: "資訊工程科系",
+    startTime: new Date(Date.now() - 3600 * 1000 * 1).toISOString().slice(0, 16),
+    endTime: new Date(Date.now() + 3600 * 1000 * 24 * 3).toISOString().slice(0, 16),
+    targetAudience: "忠班",
+    showScoreImmediately: true,
+    showAnswerImmediately: true,
+    showRankImmediately: true,
+    questionIds: "1,2",
+    questionCount: 2,
+    durationMinutes: 20,
+    createdBy: "王老師",
+    createdAt: "2026-09-09"
+  }
+];
+
+let savedPapers = null;
+try {
+  const p = localStorage.getItem('qb_papers');
+  if (p) savedPapers = JSON.parse(p);
+} catch (e) { }
+
 let DB = {
   nextQId: 1,
   nextPId: 1,
@@ -56,7 +99,8 @@ let DB = {
   questions: [],
   pending: [],
   folders: [],
-  courses: savedCourses || defaultCourses
+  courses: savedCourses || defaultCourses,
+  papers: savedPapers || defaultPapers
 };
 
 function escapeHtml(str) {
@@ -576,6 +620,161 @@ const UserAPI = {
   }
 };
 
+const PaperAPI = {
+  async list(filters = {}) {
+    if (USE_API) {
+      try {
+        const query = new URLSearchParams(filters);
+        const res = await apiFetch('GET', '/papers?' + query.toString());
+        const rawList = (res && res.data) ? res.data : (Array.isArray(res) ? res : []);
+        const mapped = rawList.map(p => ({
+          id: p.id,
+          name: p.name,
+          subject: p.subject || '綜合',
+          department: p.department || '自然科學科',
+          startTime: p.startTime ? p.startTime.slice(0, 16) : '',
+          endTime: p.endTime ? p.endTime.slice(0, 16) : '',
+          targetAudience: p.targetAudience || 'ALL',
+          showScoreImmediately: p.showScoreImmediately !== false,
+          showAnswerImmediately: p.showAnswerImmediately !== false,
+          showRankImmediately: p.showRankImmediately !== false,
+          questionIds: p.questionIds || '',
+          questionCount: p.questionCount || (p.questionIds ? p.questionIds.split(',').filter(Boolean).length : 0),
+          durationMinutes: p.durationMinutes || 30,
+          createdBy: p.createdBy || '王老師',
+          createdAt: p.createdAt ? p.createdAt.slice(0, 10) : '',
+          status: p.status
+        }));
+        DB.papers = mapped;
+        return mapped;
+      } catch (e) {
+        console.warn('無法連線至後端試卷 API，使用本地快取', e);
+      }
+    }
+    return DB.papers || [];
+  },
+  async get(id) {
+    if (USE_API) {
+      try {
+        const res = await apiFetch('GET', '/papers/' + id);
+        return (res && res.data) ? res.data : res;
+      } catch (e) {
+        console.warn('讀取試卷失敗', e);
+      }
+    }
+    return (DB.papers || []).find(p => p.id === id);
+  },
+  async create(data) {
+    if (USE_API) {
+      const payload = {
+        name: data.name,
+        subject: data.subject || '綜合',
+        department: data.department || '自然科學科',
+        startTime: data.startTime ? (data.startTime.length === 16 ? data.startTime + ':00' : data.startTime) : null,
+        endTime: data.endTime ? (data.endTime.length === 16 ? data.endTime + ':00' : data.endTime) : null,
+        targetAudience: data.targetAudience || 'ALL',
+        showScoreImmediately: data.showScoreImmediately !== false,
+        showAnswerImmediately: data.showAnswerImmediately !== false,
+        showRankImmediately: data.showRankImmediately !== false,
+        questionIds: data.questionIds || '',
+        durationMinutes: parseInt(data.durationMinutes) || 30,
+        createdBy: data.createdBy || getCurrentTeacherName()
+      };
+      const res = await apiFetch('POST', '/papers', payload);
+      const saved = (res && res.data) ? res.data : res;
+      const formatted = {
+        id: saved.id || Date.now(),
+        name: saved.name,
+        subject: saved.subject || '綜合',
+        department: saved.department || '自然科學科',
+        startTime: saved.startTime ? saved.startTime.slice(0, 16) : '',
+        endTime: saved.endTime ? saved.endTime.slice(0, 16) : '',
+        targetAudience: saved.targetAudience || 'ALL',
+        showScoreImmediately: saved.showScoreImmediately !== false,
+        showAnswerImmediately: saved.showAnswerImmediately !== false,
+        showRankImmediately: saved.showRankImmediately !== false,
+        questionIds: saved.questionIds || '',
+        questionCount: saved.questionCount || (saved.questionIds ? saved.questionIds.split(',').filter(Boolean).length : 0),
+        durationMinutes: saved.durationMinutes || 30,
+        createdBy: saved.createdBy || getCurrentTeacherName(),
+        createdAt: saved.createdAt ? saved.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+        status: saved.status
+      };
+      DB.papers.unshift(formatted);
+      return formatted;
+    }
+    const newPaper = {
+      ...data,
+      id: Date.now(),
+      createdAt: new Date().toISOString().slice(0, 10),
+      createdBy: getCurrentTeacherName()
+    };
+    DB.papers.unshift(newPaper);
+    try { localStorage.setItem('qb_papers', JSON.stringify(DB.papers)); } catch(e){}
+    return newPaper;
+  },
+  async remove(id) {
+    if (USE_API) {
+      try {
+        await apiFetch('DELETE', '/papers/' + id);
+      } catch (e) {
+        console.warn('API 刪除試卷失敗', e);
+      }
+    }
+    DB.papers = (DB.papers || []).filter(p => p.id !== id);
+    try { localStorage.setItem('qb_papers', JSON.stringify(DB.papers)); } catch(e){}
+    return true;
+  },
+  async submit(id, submissionData) {
+    if (USE_API) {
+      try {
+        const res = await apiFetch('POST', `/papers/${id}/submit`, submissionData);
+        return (res && res.data) ? res.data : res;
+      } catch (e) {
+        console.warn('API 提交試卷失敗，使用本地計分機制', e);
+      }
+    }
+    // Local fallback evaluation
+    const paper = (DB.papers || []).find(p => p.id === id);
+    const qIds = (paper?.questionIds || '').split(',').map(s => parseInt(s.trim())).filter(Boolean);
+    const questions = DB.questions.filter(q => qIds.includes(q.id));
+    let correctCount = 0;
+    const answers = submissionData.answers || {};
+    const reviews = questions.map(q => {
+      const stdAns = (answers[q.id] || '').trim();
+      const correctAns = (q.answer || 'A').trim();
+      const isCorrect = stdAns.toUpperCase() === correctAns.toUpperCase();
+      if (isCorrect) correctCount++;
+      return {
+        questionId: q.id,
+        content: q.content,
+        optA: q.optA, optB: q.optB, optC: q.optC, optD: q.optD,
+        studentAnswer: stdAns,
+        correctAnswer: correctAns,
+        isCorrect
+      };
+    });
+    const totalCount = questions.length;
+    const score = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+    return {
+      submissionId: Date.now(),
+      paperId: id,
+      paperName: paper ? paper.name : '測驗',
+      score,
+      totalQuestions: totalCount,
+      correctCount,
+      accuracy: totalCount > 0 ? correctCount / totalCount : 0,
+      showScore: paper ? paper.showScoreImmediately : true,
+      showAnswer: paper ? paper.showAnswerImmediately : true,
+      showRank: paper ? paper.showRankImmediately : true,
+      rank: 1,
+      totalStudentsInAudience: 18,
+      rankPercentile: '第 1 名 (領先 100% 同學)',
+      questionReviews: reviews
+    };
+  }
+};
+
 function buildGeneratedQuestions(folder) {
   const subjects = folder.materials.map(m => m.name).join('、');
   const banks = [
@@ -640,10 +839,14 @@ const Modal = {
   },
   getVal(id) { return document.getElementById(id)?.value?.trim(); }
 };
-document.getElementById('modalClose').onclick = () => Modal.close();
-document.getElementById('modalCancelBtn').onclick = () => Modal.close();
-document.getElementById('modalConfirmBtn').onclick = () => { if (Modal._onConfirm) Modal._onConfirm(); };
-document.getElementById('modalOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) Modal.close(); });
+const _mClose = document.getElementById('modalClose');
+if (_mClose) _mClose.onclick = () => Modal.close();
+const _mCancel = document.getElementById('modalCancelBtn');
+if (_mCancel) _mCancel.onclick = () => Modal.close();
+const _mConfirm = document.getElementById('modalConfirmBtn');
+if (_mConfirm) _mConfirm.onclick = () => { if (Modal._onConfirm) Modal._onConfirm(); };
+const _mOverlay = document.getElementById('modalOverlay');
+if (_mOverlay) _mOverlay.addEventListener('click', e => { if (e.target === e.currentTarget) Modal.close(); });
 
 /* ============================================================
    SECTION 4: TOAST SYSTEM
@@ -2673,6 +2876,8 @@ function showPanel(panelId) {
   if (panelId === 't-import' && !panelInited.import) { initImportPanel(); panelInited.import = true; }
   if (panelId === 't-bank' && !panelInited.bank) { initBankPanel(); panelInited.bank = true; }
   if (panelId === 't-folder' && !panelInited.folder) { initFolderPanel(); panelInited.folder = true; }
+  if (panelId === 't-paper') { renderPaperList(); }
+  if (panelId === 's-quiz' || panelId === 's-home') { renderStudentPaperList(); }
   if (panelId === 't-course' || panelId === 'm-course') { renderCourseList(); }
   if (panelId === 't-perm') { renderTeacherPermPanel(); }
 }
@@ -4233,6 +4438,1032 @@ function initStudentDropZone() {
 }
 
 
+/* ============================================================
+   SECTION 8C: 固定試卷管理與學生作答系統 (Fixed Paper Management & Exam Runner)
+   ============================================================ */
+let selectedPaperQuestionIds = new Set();
+let currentExamSession = null;
+let examTimerInterval = null;
+
+// ── 老師端：試卷清單渲染與篩選 ──────────────────────────────────────────
+
+async function renderPaperList() {
+  const tbody = document.getElementById('paperTableBody');
+  if (!tbody) return;
+
+  if (USE_API && (!DB.papers || DB.papers.length === 0)) {
+    try {
+      await PaperAPI.list();
+    } catch(e) {}
+  }
+
+  const papers = DB.papers || [];
+  const keyword = document.getElementById('paperSearchInput')?.value?.trim().toLowerCase() || '';
+  const statusFilter = document.getElementById('paperStatusFilter')?.value || '';
+  const audienceFilter = document.getElementById('paperAudienceFilter')?.value || '';
+
+  const now = new Date();
+
+  const filtered = papers.filter(p => {
+    let status = p.status;
+    if (!status) {
+      const sTime = p.startTime ? new Date(p.startTime) : null;
+      const eTime = p.endTime ? new Date(p.endTime) : null;
+      if (sTime && now < sTime) status = 'UPCOMING';
+      else if (eTime && now > eTime) status = 'ENDED';
+      else status = 'ACTIVE';
+    }
+    p.computedStatus = status;
+
+    if (keyword) {
+      const match = (p.name || '').toLowerCase().includes(keyword) ||
+                    (p.subject || '').toLowerCase().includes(keyword) ||
+                    (p.targetAudience || '').toLowerCase().includes(keyword);
+      if (!match) return false;
+    }
+    if (statusFilter && status !== statusFilter) return false;
+    if (audienceFilter) {
+      if (audienceFilter === 'ALL' && p.targetAudience !== 'ALL' && !p.targetAudience.includes('全部')) return false;
+      if (audienceFilter !== 'ALL' && p.targetAudience !== 'ALL' && !p.targetAudience.includes(audienceFilter)) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr>
+      <td colspan="8" style="text-align:center;color:var(--ink-mute);padding:36px;">
+        <i class="ti ti-file-off" style="font-size:28px;display:block;margin-bottom:8px;color:var(--ink-mute);"></i>
+        ${papers.length === 0 ? '目前尚無建立的固定試卷，請點擊上方「建立試卷」新增第一份試卷' : '沒有符合篩選條件的固定試卷'}
+      </td>
+    </tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((p, idx) => {
+    let statusPill = '';
+    if (p.computedStatus === 'ACTIVE') {
+      statusPill = '<span class="status-pill active"><span class="dot"></span>進行中</span>';
+    } else if (p.computedStatus === 'UPCOMING') {
+      statusPill = '<span class="status-pill upcoming"><span class="dot"></span>未開始</span>';
+    } else {
+      statusPill = '<span class="status-pill ended"><span class="dot"></span>已截止</span>';
+    }
+
+    let timeDisplay = '';
+    if (p.startTime || p.endTime) {
+      const st = p.startTime ? p.startTime.replace('T', ' ') : '即刻起';
+      const et = p.endTime ? p.endTime.replace('T', ' ') : '無截止';
+      timeDisplay = `<div style="font-size:12px;color:var(--ink);">${escapeHtml(st)}</div><div style="font-size:11px;color:var(--ink-mute);">至 ${escapeHtml(et)}</div>`;
+    } else {
+      timeDisplay = '<span style="color:var(--teal-700);font-size:12px;font-weight:500;">永久開放</span>';
+    }
+
+    let audienceBadge = '';
+    if (!p.targetAudience || p.targetAudience === 'ALL' || p.targetAudience.includes('全部')) {
+      audienceBadge = '<span class="tag" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;"><i class="ti ti-users"></i> 全體學生</span>';
+    } else {
+      audienceBadge = `<span class="tag" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;"><i class="ti ti-school"></i> ${escapeHtml(p.targetAudience)}</span>`;
+    }
+
+    const settingsTags = `
+      <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">
+        <span class="tag" style="font-size:10.5px;background:${p.showScoreImmediately !== false ? '#ecfdf5;color:#065f46;border:1px solid #a7f3d0' : '#f1f5f9;color:#94a3b8'};">成績 ${p.showScoreImmediately !== false ? '✓' : '✕'}</span>
+        <span class="tag" style="font-size:10.5px;background:${p.showAnswerImmediately !== false ? '#ecfdf5;color:#065f46;border:1px solid #a7f3d0' : '#f1f5f9;color:#94a3b8'};">答案 ${p.showAnswerImmediately !== false ? '✓' : '✕'}</span>
+        <span class="tag" style="font-size:10.5px;background:${p.showRankImmediately !== false ? '#ecfdf5;color:#065f46;border:1px solid #a7f3d0' : '#f1f5f9;color:#94a3b8'};">排名 ${p.showRankImmediately !== false ? '✓' : '✕'}</span>
+      </div>
+    `;
+
+    return `
+      <tr>
+        <td style="text-align:center;color:var(--ink-mute);font-size:12px;">${idx + 1}</td>
+        <td>
+          <div style="font-weight:600;color:var(--ink);font-size:13.5px;">${escapeHtml(p.name)}</div>
+          <div style="font-size:11.5px;color:var(--ink-mute);margin-top:2px;">建立者：${escapeHtml(p.createdBy || '教師')} · ${escapeHtml(p.createdAt || '')}</div>
+        </td>
+        <td>
+          <div style="font-size:13px;font-weight:500;">${escapeHtml(p.subject || '綜合')}</div>
+          <div style="font-size:11.5px;color:var(--ink-soft);">${p.questionCount || 0} 題 · ${p.durationMinutes || 30} 分鐘</div>
+        </td>
+        <td>${timeDisplay}</td>
+        <td>${audienceBadge}</td>
+        <td style="text-align:center;">${settingsTags}</td>
+        <td style="text-align:center;">${statusPill}</td>
+        <td style="text-align:right;">
+          <div style="display:flex;gap:6px;justify-content:flex-end;">
+            <button class="ghost" style="padding:4px 8px;font-size:11.5px;" onclick="previewPaperDetail(${p.id})"><i class="ti ti-eye"></i> 預覽</button>
+            <button class="ghost" style="padding:4px 8px;font-size:11.5px;color:var(--red-600);" onclick="deletePaper(${p.id})"><i class="ti ti-trash"></i></button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function filterPaperList() {
+  renderPaperList();
+}
+
+function resetPaperFilters() {
+  const s = document.getElementById('paperSearchInput');
+  const st = document.getElementById('paperStatusFilter');
+  const a = document.getElementById('paperAudienceFilter');
+  if (s) s.value = '';
+  if (st) st.value = '';
+  if (a) a.value = '';
+  renderPaperList();
+}
+
+// ── 老師端：建立試卷彈窗與題庫勾選器 ──────────────────────────────────────
+
+function openCreatePaperModal() {
+  const modal = document.getElementById('paperCreateModal');
+  if (!modal) return;
+
+  const nameEl = document.getElementById('paperNameInput');
+  if (nameEl) nameEl.value = '';
+
+  const now = new Date();
+  const startTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  const end = new Date(now.getTime() + 7 * 24 * 3600 * 1000 - now.getTimezoneOffset() * 60000);
+  const endTime = end.toISOString().slice(0, 16);
+
+  const startEl = document.getElementById('paperStartTimeInput');
+  const endEl = document.getElementById('paperEndTimeInput');
+  if (startEl) startEl.value = startTime;
+  if (endEl) endEl.value = endTime;
+
+  const durEl = document.getElementById('paperDurationInput');
+  if (durEl) durEl.value = '30';
+
+  setPaperAudienceAll(true);
+
+  const sScore = document.getElementById('paperSwitchScore');
+  const sAns = document.getElementById('paperSwitchAnswer');
+  const sRank = document.getElementById('paperSwitchRank');
+  if (sScore) sScore.classList.add('on');
+  if (sAns) sAns.classList.add('on');
+  if (sRank) sRank.classList.add('on');
+
+  selectedPaperQuestionIds.clear();
+
+  populatePaperPickerFilterOptions();
+  renderPaperQuestionPicker();
+
+  modal.classList.add('active');
+}
+
+function closeCreatePaperModal() {
+  const modal = document.getElementById('paperCreateModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function togglePaperAudienceMode() {
+  const isCustom = document.getElementById('paperAudienceTypeCustom')?.checked;
+  const container = document.getElementById('paperAudienceClassesContainer');
+  if (container) {
+    container.style.opacity = isCustom ? '1' : '0.5';
+    container.style.pointerEvents = isCustom ? 'auto' : 'none';
+  }
+}
+
+function setPaperAudienceAll(isAll) {
+  const allRadio = document.getElementById('paperAudienceTypeAll');
+  const customRadio = document.getElementById('paperAudienceTypeCustom');
+  if (isAll) {
+    if (allRadio) allRadio.checked = true;
+  } else {
+    if (customRadio) customRadio.checked = true;
+  }
+  togglePaperAudienceMode();
+}
+
+function selectAllPaperAudienceClasses(select) {
+  setPaperAudienceAll(false);
+  document.querySelectorAll('.paper-class-chk').forEach(c => c.checked = select);
+}
+
+function populatePaperPickerFilterOptions() {
+  const deptSel = document.getElementById('paperQFilterDept');
+  const subjSel = document.getElementById('paperQFilterSubject');
+  const unitSel = document.getElementById('paperQFilterUnit');
+  if (!deptSel || !subjSel || !unitSel) return;
+
+  const depts = new Set();
+  const subjs = new Set();
+  const units = new Set();
+
+  (DB.questions || []).forEach(q => {
+    if (q.dept) depts.add(q.dept);
+    if (q.subject) subjs.add(q.subject);
+    if (q.unit) units.add(q.unit);
+  });
+
+  deptSel.innerHTML = '<option value="">全部科系</option>' + [...depts].map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+  subjSel.innerHTML = '<option value="">全部科目</option>' + [...subjs].map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  unitSel.innerHTML = '<option value="">全部單元</option>' + [...units].map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
+}
+
+function getFilteredPaperQuestions() {
+  const dept = document.getElementById('paperQFilterDept')?.value || '';
+  const subj = document.getElementById('paperQFilterSubject')?.value || '';
+  const unit = document.getElementById('paperQFilterUnit')?.value || '';
+  const diff = document.getElementById('paperQFilterDifficulty')?.value || '';
+  const kw = document.getElementById('paperQFilterSearch')?.value?.trim().toLowerCase() || '';
+
+  return (DB.questions || []).filter(q => {
+    if (dept && q.dept !== dept) return false;
+    if (subj && q.subject !== subj) return false;
+    if (unit && q.unit !== unit) return false;
+    if (diff && q.difficulty !== diff) return false;
+    if (kw) {
+      const match = (q.content || '').toLowerCase().includes(kw) ||
+                    (q.optA || '').toLowerCase().includes(kw) ||
+                    (q.optB || '').toLowerCase().includes(kw) ||
+                    (q.optC || '').toLowerCase().includes(kw) ||
+                    (q.optD || '').toLowerCase().includes(kw);
+      if (!match) return false;
+    }
+    return true;
+  });
+}
+
+function renderPaperQuestionPicker() {
+  const tbody = document.getElementById('paperQuestionTableBody');
+  if (!tbody) return;
+
+  const filtered = getFilteredPaperQuestions();
+  updatePaperPickerSummary(filtered.length);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr>
+      <td colspan="6" style="text-align:center;color:var(--ink-mute);padding:24px;">
+        <i class="ti ti-search-off" style="font-size:20px;display:block;margin-bottom:4px;"></i>查無符合篩選條件之題庫試題
+      </td>
+    </tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((q, idx) => {
+    const isSelected = selectedPaperQuestionIds.has(q.id);
+    return `
+      <tr style="${isSelected ? 'background:var(--teal-50);' : ''}">
+        <td style="text-align:center;">
+          <input type="checkbox" class="paper-q-row-chk" value="${q.id}" ${isSelected ? 'checked' : ''} onchange="togglePaperQuestionSelection(${q.id}, this.checked)" style="accent-color:var(--teal-600);width:15px;height:15px;cursor:pointer;">
+        </td>
+        <td>
+          <div style="font-size:13px;font-weight:500;color:var(--ink);line-height:1.5;">${escapeHtml(q.content)}</div>
+          <div style="display:flex;gap:12px;margin-top:4px;font-size:11.5px;color:var(--ink-soft);flex-wrap:wrap;">
+            <span>A. ${escapeHtml(q.optA || '')}</span>
+            <span>B. ${escapeHtml(q.optB || '')}</span>
+            <span>C. ${escapeHtml(q.optC || '')}</span>
+            <span>D. ${escapeHtml(q.optD || '')}</span>
+          </div>
+        </td>
+        <td style="font-size:12px;">
+          <div style="font-weight:500;color:var(--teal-900);">${escapeHtml(q.subject || '-')}</div>
+          <div style="font-size:11px;color:var(--ink-mute);">${escapeHtml(q.dept || '-')}</div>
+        </td>
+        <td style="font-size:12px;color:var(--ink-soft);">${escapeHtml(q.unit || '-')}</td>
+        <td style="text-align:center;">
+          <span class="diff-badge ${q.difficulty || '中'}">${q.difficulty || '中'}</span>
+        </td>
+        <td style="text-align:center;">
+          <span class="tag" style="background:#dcfce7;color:#15803d;font-weight:700;">${escapeHtml(q.answer || 'A')}</span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  const headerChk = document.getElementById('paperQHeaderCheckbox');
+  if (headerChk) {
+    const allFilteredSelected = filtered.length > 0 && filtered.every(q => selectedPaperQuestionIds.has(q.id));
+    headerChk.checked = allFilteredSelected;
+  }
+}
+
+function filterPaperQuestionPicker() {
+  renderPaperQuestionPicker();
+}
+
+function togglePaperQuestionSelection(qId, isChecked) {
+  if (isChecked) {
+    selectedPaperQuestionIds.add(qId);
+  } else {
+    selectedPaperQuestionIds.delete(qId);
+  }
+  updatePaperPickerSummary();
+  const filtered = getFilteredPaperQuestions();
+  const headerChk = document.getElementById('paperQHeaderCheckbox');
+  if (headerChk) {
+    headerChk.checked = filtered.length > 0 && filtered.every(q => selectedPaperQuestionIds.has(q.id));
+  }
+}
+
+function toggleSelectAllCurrentPageQuestions(isChecked) {
+  const filtered = getFilteredPaperQuestions();
+  filtered.forEach(q => {
+    if (isChecked) selectedPaperQuestionIds.add(q.id);
+    else selectedPaperQuestionIds.delete(q.id);
+  });
+  renderPaperQuestionPicker();
+}
+
+function toggleSelectAllFilteredPaperQuestions(select) {
+  const filtered = getFilteredPaperQuestions();
+  filtered.forEach(q => {
+    if (select) selectedPaperQuestionIds.add(q.id);
+    else selectedPaperQuestionIds.delete(q.id);
+  });
+  renderPaperQuestionPicker();
+  toast(select ? `已選取目前篩選的 ${filtered.length} 題` : '已取消選取', 'info');
+}
+
+function clearAllSelectedPaperQuestions() {
+  selectedPaperQuestionIds.clear();
+  renderPaperQuestionPicker();
+  toast('已清空全部題目勾選', 'info');
+}
+
+function updatePaperPickerSummary(filteredCount) {
+  const badge = document.getElementById('paperSelectedCountBadge');
+  const summary = document.getElementById('paperFormSummaryText');
+  const count = selectedPaperQuestionIds.size;
+  if (badge) badge.textContent = `已選 ${count} 題`;
+  if (summary) {
+    if (count === 0) {
+      summary.innerHTML = '<span style="color:var(--amber-600);"><i class="ti ti-alert-circle"></i> 尚未勾選任何試題</span>';
+    } else {
+      summary.innerHTML = `<span style="color:var(--teal-700);font-weight:600;"><i class="ti ti-circle-check"></i> 已勾選 ${count} 道試題</span>（題庫共 ${(DB.questions||[]).length} 題）`;
+    }
+  }
+}
+
+async function saveCreatePaperForm() {
+  const name = document.getElementById('paperNameInput')?.value?.trim();
+  if (!name) {
+    toast('請輸入試卷名稱', 'warning');
+    document.getElementById('paperNameInput')?.focus();
+    return;
+  }
+
+  if (selectedPaperQuestionIds.size === 0) {
+    toast('請至少勾選 1 道題庫題目！', 'warning');
+    return;
+  }
+
+  const startTime = document.getElementById('paperStartTimeInput')?.value || '';
+  const endTime = document.getElementById('paperEndTimeInput')?.value || '';
+  const duration = parseInt(document.getElementById('paperDurationInput')?.value) || 30;
+
+  if (startTime && endTime && new Date(startTime) > new Date(endTime)) {
+    toast('開放開始時間不可晚於結束時間！', 'warning');
+    return;
+  }
+
+  const audienceType = document.querySelector('input[name="paperAudienceType"]:checked')?.value || 'ALL';
+  let targetAudience = 'ALL';
+  if (audienceType === 'CUSTOM') {
+    const selectedClasses = [];
+    document.querySelectorAll('.paper-class-chk:checked').forEach(chk => selectedClasses.push(chk.value));
+    if (selectedClasses.length === 0) {
+      toast('請至少勾選一個開放班級，或選擇全部班級！', 'warning');
+      return;
+    }
+    targetAudience = selectedClasses.join(',');
+  }
+
+  const showScore = document.getElementById('paperSwitchScore')?.classList.contains('on');
+  const showAnswer = document.getElementById('paperSwitchAnswer')?.classList.contains('on');
+  const showRank = document.getElementById('paperSwitchRank')?.classList.contains('on');
+
+  const questionIdsArr = Array.from(selectedPaperQuestionIds);
+  const firstQ = (DB.questions || []).find(q => q.id === questionIdsArr[0]);
+  const subject = firstQ ? firstQ.subject : '綜合';
+  const dept = firstQ ? firstQ.dept : '自然科學科';
+
+  const paperData = {
+    name,
+    subject,
+    department: dept,
+    startTime,
+    endTime,
+    targetAudience,
+    showScoreImmediately: showScore,
+    showAnswerImmediately: showAnswer,
+    showRankImmediately: showRank,
+    questionIds: questionIdsArr.join(','),
+    questionCount: questionIdsArr.length,
+    durationMinutes: duration,
+    createdBy: getCurrentTeacherName()
+  };
+
+  try {
+    await PaperAPI.create(paperData);
+    closeCreatePaperModal();
+    renderPaperList();
+    toast(`已成功建立固定試卷「${name}」！`, 'success');
+  } catch (err) {
+    toast(`建立試卷失敗：${err.message || err}`, 'error');
+  }
+}
+
+function previewPaperDetail(paperId) {
+  const paper = (DB.papers || []).find(p => p.id === paperId);
+  if (!paper) return;
+
+  const modal = document.getElementById('paperPreviewModal');
+  const titleEl = document.getElementById('paperPreviewTitle');
+  const bodyEl = document.getElementById('paperPreviewBody');
+  if (!modal || !bodyEl) return;
+
+  if (titleEl) titleEl.textContent = `試卷詳情預覽 — ${paper.name}`;
+
+  const qIds = (paper.questionIds || '').split(',').map(s => parseInt(s.trim())).filter(Boolean);
+  const questions = (DB.questions || []).filter(q => qIds.includes(q.id));
+
+  bodyEl.innerHTML = `
+    <div style="background:#f8fafc;padding:12px 16px;border-radius:8px;border:1px solid var(--line);margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center;">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--ink);">${escapeHtml(paper.name)}</div>
+          <div style="font-size:12.5px;color:var(--ink-mute);margin-top:2px;">科目：${escapeHtml(paper.subject || '綜合')} · 題數：${questions.length} 題 · 作答時間：${paper.durationMinutes || 30} 分鐘</div>
+        </div>
+        <div>
+          <span class="tag" style="background:#e0f2fe;color:#0369a1;font-weight:600;"><i class="ti ti-users"></i> 開放對象：${escapeHtml(paper.targetAudience === 'ALL' ? '全體學生' : paper.targetAudience)}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;font-size:12px;color:var(--ink-soft);border-top:1px dashed var(--line);padding-top:8px;">
+        <span><strong>開放時間：</strong>${paper.startTime ? paper.startTime.replace('T',' ') : '即刻'} ~ ${paper.endTime ? paper.endTime.replace('T',' ') : '無截止'}</span>
+        <span>·</span>
+        <span><strong>交卷顯示：</strong>成績(${paper.showScoreImmediately!==false?'✓':'✕'}) 答案(${paper.showAnswerImmediately!==false?'✓':'✕'}) 排名(${paper.showRankImmediately!==false?'✓':'✕'})</span>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:0;">試卷題目列表（共 ${questions.length} 題）</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      ${questions.length === 0 ? '<div style="text-align:center;color:var(--ink-mute);padding:20px;">尚無關聯題目</div>' : questions.map((q, idx) => `
+        <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 16px;">
+          <div style="font-size:13.5px;font-weight:600;color:var(--ink);margin-bottom:8px;">
+            <span style="color:var(--teal-600);margin-right:6px;">第 ${idx + 1} 題.</span>${escapeHtml(q.content)}
+          </div>
+          <div class="grid grid-2" style="gap:6px;font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;">
+            <div style="padding:4px 8px;background:#f8fafc;border-radius:4px;${q.answer==='A'?'border:1px solid #86efac;background:#f0fdf4;font-weight:600;color:#15803d;':''}">A. ${escapeHtml(q.optA || '')}</div>
+            <div style="padding:4px 8px;background:#f8fafc;border-radius:4px;${q.answer==='B'?'border:1px solid #86efac;background:#f0fdf4;font-weight:600;color:#15803d;':''}">B. ${escapeHtml(q.optB || '')}</div>
+            <div style="padding:4px 8px;background:#f8fafc;border-radius:4px;${q.answer==='C'?'border:1px solid #86efac;background:#f0fdf4;font-weight:600;color:#15803d;':''}">C. ${escapeHtml(q.optC || '')}</div>
+            <div style="padding:4px 8px;background:#f8fafc;border-radius:4px;${q.answer==='D'?'border:1px solid #86efac;background:#f0fdf4;font-weight:600;color:#15803d;':''}">D. ${escapeHtml(q.optD || '')}</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--ink-mute);border-top:1px solid #f1f5f9;padding-top:6px;">
+            <div>單元：${escapeHtml(q.unit || '-')} · 難度：${escapeHtml(q.difficulty || '中')}</div>
+            <div>標準解答：<strong style="color:#15803d;">${escapeHtml(q.answer || 'A')}</strong></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  modal.classList.add('active');
+}
+
+function deletePaper(paperId) {
+  const paper = (DB.papers || []).find(p => p.id === paperId);
+  if (!paper) return;
+
+  Modal.open({
+    title: '確認刪除固定試卷',
+    body: `確定要刪除固定試卷「<strong>${escapeHtml(paper.name)}</strong>」嗎？刪除後學生將無法再參加本測驗。`,
+    confirmText: '刪除試卷',
+    confirmClass: 'danger',
+    onConfirm: async () => {
+      await PaperAPI.remove(paperId);
+      renderPaperList();
+      Modal.close();
+      toast(`固定試卷「${paper.name}」已刪除`, 'info');
+    }
+  });
+}
+
+// ── 學生端：依開放時間與班級顯示試卷清單 ──────────────────────────────────────
+
+function getStudentCurrentClass() {
+  const label = document.getElementById('studentCurrentClassLabel');
+  if (label && label.textContent.trim()) return label.textContent.trim();
+  return '忠班';
+}
+
+async function renderStudentPaperList() {
+  const container = document.getElementById('studentFixedPaperList');
+  if (!container) return;
+
+  if (USE_API && (!DB.papers || DB.papers.length === 0)) {
+    try {
+      await PaperAPI.list();
+    } catch(e) {}
+  }
+
+  const papers = DB.papers || [];
+  const studentClass = getStudentCurrentClass();
+  const now = new Date();
+
+  // Populate sQuiz filter dropdowns
+  const deptSel = document.getElementById('sQuizDept');
+  const subjSel = document.getElementById('sQuizSubject');
+  const unitSel = document.getElementById('sQuizUnit');
+  if (deptSel && deptSel.children.length <= 1) {
+    const depts = new Set(), subjs = new Set(), units = new Set();
+    (DB.questions || []).forEach(q => {
+      if (q.dept) depts.add(q.dept);
+      if (q.subject) subjs.add(q.subject);
+      if (q.unit) units.add(q.unit);
+    });
+    deptSel.innerHTML = '<option value="">全部科系</option>' + [...depts].map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+    if (subjSel) subjSel.innerHTML = '<option value="">全部科目</option>' + [...subjs].map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    if (unitSel) unitSel.innerHTML = '<option value="">全部單元</option>' + [...units].map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
+  }
+
+  const availablePapers = papers.filter(p => {
+    if (!p.targetAudience || p.targetAudience === 'ALL' || p.targetAudience.includes('全部')) return true;
+    return p.targetAudience.includes(studentClass);
+  });
+
+  const countBadge = document.getElementById('studentFixedPaperCountBadge');
+  if (countBadge) countBadge.textContent = `${availablePapers.length} 份試卷`;
+
+  let activePaperCount = 0;
+  let firstActivePaper = null;
+
+  availablePapers.forEach(p => {
+    let status = p.status;
+    if (!status) {
+      const sTime = p.startTime ? new Date(p.startTime) : null;
+      const eTime = p.endTime ? new Date(p.endTime) : null;
+      if (sTime && now < sTime) status = 'UPCOMING';
+      else if (eTime && now > eTime) status = 'ENDED';
+      else status = 'ACTIVE';
+    }
+    p.computedStatus = status;
+    if (status === 'ACTIVE') {
+      activePaperCount++;
+      if (!firstActivePaper) firstActivePaper = p;
+    }
+  });
+
+  const homeTitle = document.getElementById('studentHomePaperTitle');
+  const homeSub = document.getElementById('studentHomePaperSub');
+  if (homeTitle && homeSub) {
+    if (activePaperCount > 0) {
+      homeTitle.innerHTML = `<span style="color:#059669;">【${escapeHtml(firstActivePaper.name)}】</span> 開放測驗中！`;
+      homeSub.textContent = `共 ${activePaperCount} 份進行中固定試卷，請掌握開放時段完成測驗`;
+    } else {
+      homeTitle.textContent = '目前尚無進行中之固定試卷';
+      homeSub.textContent = '系統將於排程開放時間主動提示您參加測驗';
+    }
+  }
+
+  if (availablePapers.length === 0) {
+    container.innerHTML = `
+      <div class="card" style="grid-column:1/-1;text-align:center;padding:36px;color:var(--ink-mute);">
+        <i class="ti ti-notes-off" style="font-size:32px;display:block;margin-bottom:8px;color:var(--ink-mute);"></i>
+        目前沒有指派給您的固定試卷。您可於下方進行自由題庫自主練習。
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = availablePapers.map(p => {
+    let statusPill = '';
+    let cardClass = '';
+    let actionBtn = '';
+
+    if (p.computedStatus === 'ACTIVE') {
+      cardClass = 'active-card';
+      statusPill = '<span class="status-pill active"><span class="dot"></span>開放作答中</span>';
+      actionBtn = `<button class="primary" style="padding:7px 16px;font-size:13px;" onclick="startFixedPaperExam(${p.id})"><i class="ti ti-player-play"></i> 開始作答</button>`;
+    } else if (p.computedStatus === 'UPCOMING') {
+      cardClass = 'upcoming-card';
+      const st = p.startTime ? p.startTime.replace('T', ' ') : '近期';
+      statusPill = '<span class="status-pill upcoming"><span class="dot"></span>未開始</span>';
+      actionBtn = `<button class="ghost" disabled style="padding:7px 14px;font-size:12px;opacity:0.75;cursor:not-allowed;"><i class="ti ti-lock"></i> ${escapeHtml(st)} 開放</button>`;
+    } else {
+      cardClass = 'ended-card';
+      statusPill = '<span class="status-pill ended"><span class="dot"></span>已截止</span>';
+      actionBtn = `<button class="ghost" disabled style="padding:7px 14px;font-size:12px;opacity:0.6;cursor:not-allowed;"><i class="ti ti-calendar-off"></i> 測驗已截止</button>`;
+    }
+
+    const timeRangeStr = (p.startTime || p.endTime)
+      ? `${p.startTime ? p.startTime.replace('T', ' ') : '即刻'} 至 ${p.endTime ? p.endTime.replace('T', ' ') : '無截止'}`
+      : '永久開放';
+
+    return `
+      <div class="student-paper-card ${cardClass}">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px;">
+            <div style="font-size:15px;font-weight:700;color:var(--ink);line-height:1.4;">
+              ${escapeHtml(p.name)}
+            </div>
+            ${statusPill}
+          </div>
+          
+          <div class="paper-meta-row">
+            <span class="paper-meta-item"><i class="ti ti-book" style="color:var(--teal-600);"></i> ${escapeHtml(p.subject || '綜合')}</span>
+            <span class="paper-meta-item"><i class="ti ti-list-numbers" style="color:var(--blue-600);"></i> ${p.questionCount || 0} 題</span>
+            <span class="paper-meta-item"><i class="ti ti-clock" style="color:var(--amber-600);"></i> ${p.durationMinutes || 30} 分鐘</span>
+          </div>
+
+          <div style="font-size:12px;color:var(--ink-soft);background:#f8fafc;padding:6px 10px;border-radius:6px;border:1px solid #e2e8f0;margin:10px 0;">
+            <i class="ti ti-calendar-event" style="color:var(--teal-600);margin-right:4px;"></i><strong>開放時段：</strong>${escapeHtml(timeRangeStr)}
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;border-top:1px solid #f1f5f9;padding-top:10px;">
+          <div style="font-size:11px;color:var(--ink-mute);">
+            交卷反饋：${p.showScoreImmediately!==false?'成績✓':'成績✕'} ${p.showAnswerImmediately!==false?'答案✓':'答案✕'} ${p.showRankImmediately!==false?'排名✓':'排名✕'}
+          </div>
+          ${actionBtn}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── 學生作答引擎 (Exam Runner in #s-taking) ──────────────────────────────────
+
+function startFixedPaperExam(paperId) {
+  const paper = (DB.papers || []).find(p => p.id === paperId);
+  if (!paper) return;
+
+  const qIds = (paper.questionIds || '').split(',').map(s => parseInt(s.trim())).filter(Boolean);
+  const questions = (DB.questions || []).filter(q => qIds.includes(q.id));
+
+  if (questions.length === 0) {
+    toast('此試卷尚未配置題目！', 'warning');
+    return;
+  }
+
+  currentExamSession = {
+    isFixedPaper: true,
+    paper: paper,
+    questions: questions,
+    currentIndex: 0,
+    answers: {},
+    remainingSeconds: (paper.durationMinutes || 30) * 60
+  };
+
+  initExamUI();
+}
+
+function startSelfPracticeExam() {
+  const dept = document.getElementById('sQuizDept')?.value || '';
+  const subj = document.getElementById('sQuizSubject')?.value || '';
+  const unit = document.getElementById('sQuizUnit')?.value || '';
+  const count = parseInt(document.getElementById('sQuizCount')?.value) || 10;
+  const duration = parseInt(document.getElementById('sQuizDuration')?.value) || 20;
+
+  let pool = (DB.questions || []).filter(q => {
+    if (dept && q.dept !== dept) return false;
+    if (subj && q.subject !== subj) return false;
+    if (unit && q.unit !== unit) return false;
+    return true;
+  });
+
+  if (pool.length === 0) {
+    toast('選取範圍內尚無題目，請先至題庫新增題目！', 'warning');
+    return;
+  }
+
+  pool = [...pool].sort(() => 0.5 - Math.random());
+  const selectedQuestions = pool.slice(0, count);
+
+  currentExamSession = {
+    isFixedPaper: false,
+    paper: { name: '題庫自主練習', durationMinutes: duration, showScoreImmediately: true, showAnswerImmediately: true, showRankImmediately: false },
+    questions: selectedQuestions,
+    currentIndex: 0,
+    answers: {},
+    remainingSeconds: duration * 60
+  };
+
+  initExamUI();
+}
+
+function initExamUI() {
+  const sess = currentExamSession;
+  if (!sess) return;
+
+  const titleEl = document.getElementById('examCurrentTitle');
+  const badgeEl = document.getElementById('examSubjectBadge');
+  const totalEl = document.getElementById('examTotalNo');
+  if (titleEl) titleEl.textContent = sess.paper.name;
+  if (badgeEl) badgeEl.textContent = sess.questions[0]?.subject || '綜合';
+  if (totalEl) totalEl.textContent = sess.questions.length;
+
+  document.querySelectorAll('.panel').forEach(el => el.classList.remove('active'));
+  const takingPanel = document.getElementById('s-taking');
+  if (takingPanel) takingPanel.classList.add('active');
+
+  if (examTimerInterval) clearInterval(examTimerInterval);
+  updateExamTimerDisplay();
+  examTimerInterval = setInterval(() => {
+    sess.remainingSeconds--;
+    updateExamTimerDisplay();
+    if (sess.remainingSeconds <= 0) {
+      clearInterval(examTimerInterval);
+      toast('作答時間結束，系統自動交卷！', 'warning');
+      submitExamAction();
+    }
+  }, 1000);
+
+  renderExamQuestion(0);
+}
+
+function updateExamTimerDisplay() {
+  const sess = currentExamSession;
+  const el = document.getElementById('examTimer');
+  if (!sess || !el) return;
+  const mins = Math.floor(Math.max(0, sess.remainingSeconds) / 60);
+  const secs = Math.max(0, sess.remainingSeconds) % 60;
+  el.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function renderExamQuestion(idx) {
+  const sess = currentExamSession;
+  if (!sess || !sess.questions || !sess.questions[idx]) return;
+
+  sess.currentIndex = idx;
+  const q = sess.questions[idx];
+
+  const currentNoEl = document.getElementById('examCurrentNo');
+  if (currentNoEl) currentNoEl.textContent = idx + 1;
+
+  const contentEl = document.getElementById('examQuestionContent');
+  if (contentEl) contentEl.textContent = `${idx + 1}. ${q.content}`;
+
+  const optsContainer = document.getElementById('examOptionsContainer');
+  if (optsContainer) {
+    const chosen = sess.answers[q.id];
+    const opts = [
+      { letter: 'A', text: q.optA },
+      { letter: 'B', text: q.optB },
+      { letter: 'C', text: q.optC },
+      { letter: 'D', text: q.optD }
+    ].filter(o => o.text);
+
+    optsContainer.innerHTML = opts.map(o => `
+      <label class="exam-option ${chosen === o.letter ? 'selected' : ''}" onclick="selectExamOption('${o.letter}')">
+        <input type="radio" name="examOptRadio" ${chosen === o.letter ? 'checked' : ''}>
+        <span class="exam-opt-letter">${o.letter}</span>
+        <span class="exam-opt-text">${escapeHtml(o.text)}</span>
+      </label>
+    `).join('');
+  }
+
+  const prevBtn = document.getElementById('examPrevBtn');
+  const nextBtn = document.getElementById('examNextBtn');
+  if (prevBtn) prevBtn.disabled = (idx === 0);
+  if (nextBtn) {
+    if (idx === sess.questions.length - 1) {
+      nextBtn.innerHTML = '已是最後一題 <i class="ti ti-check"></i>';
+    } else {
+      nextBtn.innerHTML = '下一題 <i class="ti ti-arrow-right"></i>';
+    }
+  }
+
+  renderExamAnswerCardGrid();
+}
+
+function selectExamOption(letter) {
+  const sess = currentExamSession;
+  if (!sess) return;
+  const q = sess.questions[sess.currentIndex];
+  if (!q) return;
+
+  sess.answers[q.id] = letter;
+  renderExamQuestion(sess.currentIndex);
+}
+
+function navigateExamQuestion(delta) {
+  const sess = currentExamSession;
+  if (!sess) return;
+  const target = sess.currentIndex + delta;
+  if (target >= 0 && target < sess.questions.length) {
+    renderExamQuestion(target);
+  }
+}
+
+function renderExamAnswerCardGrid() {
+  const sess = currentExamSession;
+  const grid = document.getElementById('examAnswerCardGrid');
+  if (!sess || !grid) return;
+
+  let doneCount = 0;
+  grid.innerHTML = sess.questions.map((q, idx) => {
+    const isDone = !!sess.answers[q.id];
+    if (isDone) doneCount++;
+    const isCurrent = (idx === sess.currentIndex);
+    let cls = 'exam-num';
+    if (isCurrent) cls += ' current';
+    else if (isDone) cls += ' done';
+
+    return `<button class="${cls}" onclick="renderExamQuestion(${idx})">${idx + 1}</button>`;
+  }).join('');
+
+  const doneEl = document.getElementById('examLegendDoneCount');
+  const todoEl = document.getElementById('examLegendTodoCount');
+  if (doneEl) doneEl.textContent = doneCount;
+  if (todoEl) todoEl.textContent = sess.questions.length - doneCount;
+}
+
+function confirmExitExam() {
+  Modal.open({
+    title: '確認離開測驗',
+    body: '測驗仍在進行中，離開後作答進度將不會被儲存。確定要放棄並離開嗎？',
+    confirmText: '確定離開',
+    confirmClass: 'danger',
+    onConfirm: () => {
+      if (examTimerInterval) clearInterval(examTimerInterval);
+      currentExamSession = null;
+      Modal.close();
+      showPanel('s-quiz');
+    }
+  });
+}
+
+function confirmSubmitExam() {
+  const sess = currentExamSession;
+  if (!sess) return;
+
+  const total = sess.questions.length;
+  const answered = Object.keys(sess.answers).length;
+  const unanswered = total - answered;
+
+  let msg = `您已作答 <strong>${answered} / ${total}</strong> 題。`;
+  if (unanswered > 0) {
+    msg += `<br><span style="color:var(--red-600);"><i class="ti ti-alert-triangle"></i> 尚有 ${unanswered} 題未作答！</span>`;
+  }
+  msg += `<br>確定要現在交卷結算成績嗎？`;
+
+  Modal.open({
+    title: '確認交卷',
+    body: msg,
+    confirmText: '確定交卷',
+    confirmClass: 'primary',
+    onConfirm: () => {
+      Modal.close();
+      submitExamAction();
+    }
+  });
+}
+
+async function submitExamAction() {
+  const sess = currentExamSession;
+  if (!sess) return;
+
+  if (examTimerInterval) clearInterval(examTimerInterval);
+
+  const studentClass = getStudentCurrentClass();
+  const submissionPayload = {
+    paperId: sess.isFixedPaper ? sess.paper.id : null,
+    studentNo: 'S1130101',
+    studentName: '陳同學',
+    studentClass: studentClass,
+    answers: sess.answers
+  };
+
+  try {
+    let result = null;
+    if (sess.isFixedPaper) {
+      result = await PaperAPI.submit(sess.paper.id, submissionPayload);
+    } else {
+      let correctCount = 0;
+      const reviews = sess.questions.map(q => {
+        const std = (sess.answers[q.id] || '').trim();
+        const cor = (q.answer || 'A').trim();
+        const ok = std.toUpperCase() === cor.toUpperCase();
+        if (ok) correctCount++;
+        return {
+          questionId: q.id,
+          content: q.content,
+          optA: q.optA, optB: q.optB, optC: q.optC, optD: q.optD,
+          studentAnswer: std,
+          correctAnswer: cor,
+          isCorrect: ok
+        };
+      });
+      const score = Math.round((correctCount / sess.questions.length) * 100);
+      result = {
+        paperName: sess.paper.name,
+        score,
+        totalQuestions: sess.questions.length,
+        correctCount,
+        accuracy: correctCount / sess.questions.length,
+        showScore: true,
+        showAnswer: true,
+        showRank: false,
+        questionReviews: reviews
+      };
+    }
+
+    currentExamSession = null;
+    showPanel('s-quiz');
+    showExamResultModal(result);
+  } catch (err) {
+    toast(`交卷結算失敗：${err.message || err}`, 'error');
+  }
+}
+
+function showExamResultModal(res) {
+  const modal = document.getElementById('paperPreviewModal');
+  const titleEl = document.getElementById('paperPreviewTitle');
+  const bodyEl = document.getElementById('paperPreviewBody');
+  if (!modal || !bodyEl) return;
+
+  if (titleEl) titleEl.innerHTML = `<i class="ti ti-award" style="color:#f59e0b;"></i> 測驗結果 — ${escapeHtml(res.paperName)}`;
+
+  let scoreHtml = '';
+  if (res.showScore !== false) {
+    scoreHtml = `
+      <div class="grid grid-3" style="gap:12px;margin-bottom:16px;">
+        <div class="result-stat-badge" style="background:#f0fdf4;border-color:#bbf7d0;">
+          <div class="num" style="color:#15803d;">${res.score} <span style="font-size:16px;">分</span></div>
+          <div class="lbl">測驗得分</div>
+        </div>
+        <div class="result-stat-badge">
+          <div class="num">${res.correctCount} / ${res.totalQuestions}</div>
+          <div class="lbl">答對題數</div>
+        </div>
+        <div class="result-stat-badge">
+          <div class="num">${Math.round(res.accuracy * 100)}%</div>
+          <div class="lbl">答對率</div>
+        </div>
+      </div>
+    `;
+  } else {
+    scoreHtml = `
+      <div style="background:#f8fafc;padding:16px;border-radius:10px;border:1px solid var(--line);text-align:center;margin-bottom:16px;">
+        <i class="ti ti-lock" style="font-size:24px;color:var(--ink-mute);display:block;margin-bottom:6px;"></i>
+        <div style="font-size:14px;font-weight:600;color:var(--ink);">成績未開放即時顯示</div>
+        <div style="font-size:12px;color:var(--ink-mute);margin-top:2px;">依據老師設定，成績將於批閱或開放時段截止後統一公布</div>
+      </div>
+    `;
+  }
+
+  let rankHtml = '';
+  if (res.showRank !== false && res.rank) {
+    rankHtml = `
+      <div style="background:linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);border:1px solid #fde68a;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:26px;">🏆</span>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#92400e;">
+              班級排名：第 ${res.rank} 名 <span style="font-size:12px;font-weight:normal;color:#b45309;">/ 共 ${res.totalStudentsInAudience || 1} 人</span>
+            </div>
+            <div style="font-size:12px;color:#b45309;margin-top:2px;">${escapeHtml(res.rankPercentile || '表現優異')}</div>
+          </div>
+        </div>
+        <span class="tag" style="background:#fbbf24;color:#78350f;font-weight:700;padding:3px 10px;border-radius:12px;">名次即時計算</span>
+      </div>
+    `;
+  }
+
+  let answersHtml = '';
+  if (res.showAnswer !== false && res.questionReviews && res.questionReviews.length > 0) {
+    answersHtml = `
+      <div class="section-title" style="margin-top:14px;">題目答題詳情與正解解析</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        ${res.questionReviews.map((item, idx) => `
+          <div style="background:#fff;border:1px solid ${item.isCorrect ? '#86efac' : '#fca5a5'};border-radius:8px;padding:12px 16px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+              <div style="font-size:13.5px;font-weight:600;color:var(--ink);">
+                第 ${idx + 1} 題. ${escapeHtml(item.content)}
+              </div>
+              <span class="tag" style="background:${item.isCorrect ? '#dcfce7;color:#15803d' : '#fee2e2;color:#b91c1c'};font-weight:700;flex-shrink:0;">
+                ${item.isCorrect ? '<i class="ti ti-check"></i> 答對' : '<i class="ti ti-x"></i> 答錯'}
+              </span>
+            </div>
+            <div style="font-size:12px;color:var(--ink-soft);display:flex;gap:14px;margin-top:6px;padding-top:6px;border-top:1px dashed #e2e8f0;">
+              <div>您的答案：<strong style="color:${item.isCorrect ? '#15803d' : '#b91c1c'};">${escapeHtml(item.studentAnswer || '(未作答)')}</strong></div>
+              <div>標準正解：<strong style="color:#15803d;">${escapeHtml(item.correctAnswer || '-')}</strong></div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } else if (res.showAnswer === false) {
+    answersHtml = `
+      <div style="background:#f8fafc;padding:14px;border-radius:8px;border:1px solid var(--line);text-align:center;font-size:12.5px;color:var(--ink-mute);">
+        <i class="ti ti-eye-off" style="font-size:18px;vertical-align:middle;margin-right:4px;"></i> 題目正解與解析依老師設定不予即刻公布
+      </div>
+    `;
+  }
+
+  bodyEl.innerHTML = `
+    ${scoreHtml}
+    ${rankHtml}
+    ${answersHtml}
+  `;
+
+  modal.classList.add('active');
+}
+
 function switchRole(roleKey) {
   document.querySelectorAll('.role-btn').forEach(b => b.classList.toggle('active', b.dataset.role === roleKey));
   const role = roles[roleKey];
@@ -4273,16 +5504,6 @@ document.getElementById('userChip').addEventListener('click', () => {
   document.getElementById('profile-panel').classList.add('active');
 });
 
-/* Exam panel wiring */
-document.getElementById('startExamBtn').addEventListener('click', () => showPanel('s-taking'));
-document.querySelectorAll('.exam-option').forEach(opt => {
-  opt.addEventListener('click', () => {
-    opt.closest('.exam-options').querySelectorAll('.exam-option').forEach(o => o.classList.remove('selected'));
-    opt.classList.add('selected');
-  });
-});
-
-/* Folder upload wiring (deferred until DOM exists) */
 /* Global Data Initializer */
 async function initAppData() {
   if (USE_API) {
@@ -4302,13 +5523,19 @@ async function initAppData() {
       const c = await CourseAPI.list();
       if (c && c.length > 0) DB.courses = c;
     } catch (e) { console.warn('無法連線至後端課程 API', e); }
+    try {
+      const papers = await PaperAPI.list();
+      if (papers && papers.length > 0) DB.papers = papers;
+    } catch (e) { console.warn('無法連線至後端試卷 API', e); }
   }
   buildBankFilterOptions();
   syncDashboard();
   renderCourseList();
+  renderPaperList();
 }
 
 /* Init */
 switchRole('teacher');
 initAppData();
+
 

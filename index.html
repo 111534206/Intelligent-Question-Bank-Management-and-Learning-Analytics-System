@@ -401,13 +401,63 @@
 
 <!-- ===== 固定試卷 ===== -->
 <div class="panel" id="t-paper">
-  <div class="page-head"><div><h1>固定試卷</h1><div class="page-sub">設定測驗條件，建立可重複使用的固定試卷</div></div>
-    <button class="primary" onclick="toast('請先由題庫勾選題目建立試卷','info')"><i class="ti ti-plus"></i>建立試卷</button></div>
+  <div class="page-head">
+    <div>
+      <h1>固定試卷</h1>
+      <div class="page-sub">設定開放時段與班級對象，從題庫勾選題目建立正式試卷</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="primary" onclick="openCreatePaperModal()"><i class="ti ti-plus"></i>建立試卷</button>
+    </div>
+  </div>
+
+  <div class="filter-bar" style="background:#fff;padding:12px 16px;border:1px solid var(--line);border-radius:10px;margin-bottom:16px;display:flex;gap:12px;align-items:center;">
+    <div style="display:flex;align-items:center;gap:8px;flex:1;">
+      <i class="ti ti-search" style="color:var(--ink-mute);"></i>
+      <input type="text" id="paperSearchInput" placeholder="搜尋試卷名稱、科目或開放對象..." oninput="filterPaperList()" style="border:none;background:transparent;padding:4px 0;width:100%;outline:none;">
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select id="paperStatusFilter" onchange="filterPaperList()" style="font-size:12.5px;padding:6px 10px;">
+        <option value="">全部狀態</option>
+        <option value="ACTIVE">進行中（開放作答）</option>
+        <option value="UPCOMING">未開始（即將開放）</option>
+        <option value="ENDED">已截止（已結束）</option>
+      </select>
+      <select id="paperAudienceFilter" onchange="filterPaperList()" style="font-size:12.5px;padding:6px 10px;">
+        <option value="">全部對象</option>
+        <option value="ALL">全部班級</option>
+        <option value="忠班">忠班</option>
+        <option value="孝班">孝班</option>
+        <option value="仁班">仁班</option>
+        <option value="愛班">愛班</option>
+      </select>
+      <button class="ghost" style="padding:6px 10px;font-size:12.5px;" onclick="resetPaperFilters()"><i class="ti ti-x"></i>重設</button>
+    </div>
+  </div>
+
   <div class="card" style="padding:0;overflow:auto;">
-    <table><thead><tr><th>試卷名稱</th><th>科目</th><th>題數</th><th>作答時間</th><th>使用次數</th></tr></thead>
-    <tbody>
-      <tr><td colspan="5" style="text-align:center;color:var(--ink-mute);padding:32px;"><i class="ti ti-file-off" style="font-size:24px;display:block;margin-bottom:6px;"></i>目前尚無建立的固定試卷。</td></tr>
-    </tbody></table>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:50px;text-align:center;">序號</th>
+          <th>試卷名稱</th>
+          <th>科目 / 題數</th>
+          <th>開放時段</th>
+          <th>開放對象</th>
+          <th style="text-align:center;">交卷即時顯示設定</th>
+          <th style="text-align:center;width:100px;">狀態</th>
+          <th style="text-align:right;width:120px;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="paperTableBody">
+        <tr>
+          <td colspan="8" style="text-align:center;color:var(--ink-mute);padding:36px;">
+            <i class="ti ti-file-off" style="font-size:28px;display:block;margin-bottom:8px;color:var(--ink-mute);"></i>
+            目前尚無建立的固定試卷，請點擊上方「建立試卷」新增第一份試卷
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>
 
@@ -705,7 +755,6 @@
   <div class="card" style="padding:0;overflow:auto;"><table><thead><tr><th>題目</th><th>科目</th><th>單元</th><th>操作</th></tr></thead>
   <tbody><tr><td colspan="4" style="text-align:center;color:var(--ink-mute);padding:24px;">題庫目前尚無題目</td></tr></tbody></table></div>
 </div>
-
 <div class="panel" id="a-folder">
   <div class="page-head"><div><h1>跨文件綜合統整測驗</h1><div class="page-sub">此功能需老師授權後才能使用</div></div></div>
   <div class="perm-note"><i class="ti ti-lock"></i>目前尚未取得此功能的使用權限，請聯絡授課老師開通。</div>
@@ -723,61 +772,109 @@
     <div class="card metric-card"><div class="label">本週練習題數</div><div class="value">84</div></div>
     <div class="card metric-card"><div class="label">整體答對率</div><div class="value">73%</div></div>
   </div>
+  <div class="section-title">今日進行中固定試卷</div>
+  <div id="studentHomePaperAlert" class="card" style="border-left:4px solid var(--teal-600);margin-bottom:18px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="background:var(--teal-50);color:var(--teal-800);width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:18px;"><i class="ti ti-clock-play"></i></span>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--ink);" id="studentHomePaperTitle">檢查開放試卷中...</div>
+          <div style="font-size:12px;color:var(--ink-mute);" id="studentHomePaperSub">系統自動比對您的班級與開放時段</div>
+        </div>
+      </div>
+      <button class="primary" id="studentHomePaperBtn" onclick="showPanel('s-quiz')"><i class="ti ti-arrow-right"></i> 前往試卷專區</button>
+    </div>
+  </div>
   <div class="section-title">課程公告</div>
   <div class="card"><div class="announce-item"><div class="a-title">期中考範圍公告：第 1～5 章</div><div class="a-meta">2026-08-20 發布</div></div></div>
 </div>
+
 <div class="panel" id="s-quiz">
-  <div class="page-head"><div><h1>開始測驗</h1><div class="page-sub">選擇練習範圍與作答設定</div></div></div>
+  <div class="page-head">
+    <div>
+      <h1>開始測驗</h1>
+      <div class="page-sub">參加班級固定試卷測驗，或自行設定範圍進行自主練習</div>
+    </div>
+  </div>
+
+  <!-- 班級固定試卷專區 (依照開放時間與班級顯示) -->
+  <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:0;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <i class="ti ti-clipboard-list" style="color:var(--teal-600);font-size:18px;"></i>
+      <span>班級固定試卷（排程開放）</span>
+      <span class="fk-badge" id="studentFixedPaperCountBadge" style="font-weight:normal;background:var(--teal-50);color:var(--teal-800);">0 份試卷</span>
+    </div>
+    <div style="font-size:12px;color:var(--ink-mute);">
+      學生身份：<strong id="studentCurrentClassLabel" style="color:var(--teal-800);">忠班</strong>
+    </div>
+  </div>
+
+  <div id="studentFixedPaperList" class="grid grid-2" style="margin-bottom:28px;">
+    <!-- 由 renderStudentPaperList() 動態渲染試卷卡片 -->
+  </div>
+
+  <!-- 自主練習區塊 -->
+  <div class="section-title" style="margin-top:16px;">
+    <i class="ti ti-adjustments" style="color:var(--blue-600);margin-right:6px;"></i> 自主練習設定
+  </div>
   <div class="grid grid-2">
     <div class="card">
-      <div class="section-title" style="margin-top:0;">選擇範圍</div>
+      <div class="section-title" style="margin-top:0;">選擇練習範圍</div>
       <div class="filter-bar" style="margin-bottom:10px;">
-        <select><option>科系</option></select><select><option>科目</option></select><select><option>單元</option></select>
+        <select id="sQuizDept"><option value="">全部科系</option></select>
+        <select id="sQuizSubject"><option value="">全部科目</option></select>
+        <select id="sQuizUnit"><option value="">全部單元</option></select>
       </div>
-      <button class="ghost" style="width:100%;justify-content:center;">或選擇固定試卷</button>
+      <div style="font-size:12px;color:var(--ink-mute);line-height:1.6;">
+        可自由組合想加強練習的科系、科目與單元範圍，系統將自題庫即時抽取題目進行自主評量。
+      </div>
     </div>
     <div class="card">
       <div class="section-title" style="margin-top:0;">作答設定</div>
-      <div class="toggle-row" style="border-top:none;padding-top:0;"><span>題目數量</span><input type="number" value="20" style="width:70px;"></div>
-      <div class="toggle-row"><span>作答時間（分鐘）</span><input type="number" value="30" style="width:70px;"></div>
-      <div class="toggle-row"><span>出題模式</span><select style="min-width:100px;"><option>隨機</option><option>專挑弱點</option><option>挑沒練過的</option></select></div>
-      <div class="toggle-row"><span>答案選項隨機排列</span><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="toggle-row" style="border-top:none;padding-top:0;"><span>題目數量</span><input type="number" id="sQuizCount" value="10" min="1" max="50" style="width:70px;"></div>
+      <div class="toggle-row"><span>作答時間（分鐘）</span><input type="number" id="sQuizDuration" value="20" min="5" max="120" style="width:70px;"></div>
+      <div class="toggle-row"><span>出題模式</span><select id="sQuizMode" style="min-width:100px;"><option value="random">隨機出題</option><option value="weak">專挑弱點</option></select></div>
+      <div class="toggle-row"><span>答案選項隨機排列</span><div class="switch on" id="sQuizShuffleOpt" onclick="this.classList.toggle('on')"></div></div>
     </div>
   </div>
-  <div style="margin-top:16px;"><button class="primary" id="startExamBtn"><i class="ti ti-player-play"></i>開始測驗</button></div>
+  <div style="margin-top:16px;"><button class="primary" id="startExamBtn" onclick="startSelfPracticeExam()"><i class="ti ti-player-play"></i>開始自主練習</button></div>
 </div>
+
 <div class="panel" id="s-taking">
   <div class="exam-topbar">
-    <div><div class="exam-title">物理 · 力學單元練習</div><div class="exam-sub">第 <span id="examCurrentNo">8</span> 題 / 共 20 題</div></div>
-    <div class="exam-timer"><i class="ti ti-clock"></i><span id="examTimer">24:35</span></div>
+    <div>
+      <div class="exam-title" id="examCurrentTitle">固定試卷測驗</div>
+      <div class="exam-sub">第 <span id="examCurrentNo">1</span> 題 / 共 <span id="examTotalNo">10</span> 題 · <span id="examSubjectBadge" class="tag" style="background:#e0f2fe;color:#0369a1;">綜合</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="exam-timer"><i class="ti ti-clock"></i><span id="examTimer">30:00</span></div>
+      <button class="ghost" style="padding:6px 12px;font-size:12px;color:var(--ink-mute);" onclick="confirmExitExam()"><i class="ti ti-door-exit"></i> 離開測驗</button>
+    </div>
   </div>
   <div class="exam-body">
     <div class="exam-main">
-      <div class="card exam-question-card">
-        <div class="exam-q-text">下列關於牛頓第二運動定律 F = ma 的敘述，何者正確？</div>
-        <div class="exam-options">
-          <label class="exam-option"><input type="radio" name="examOpt"><span class="exam-opt-letter">A</span><span class="exam-opt-text">加速度與作用力成正比，與質量成反比</span></label>
-          <label class="exam-option selected"><input type="radio" name="examOpt" checked><span class="exam-opt-letter">B</span><span class="exam-opt-text">加速度與作用力成反比，與質量成正比</span></label>
-          <label class="exam-option"><input type="radio" name="examOpt"><span class="exam-opt-letter">C</span><span class="exam-opt-text">加速度與質量無關，僅與作用力有關</span></label>
-          <label class="exam-option"><input type="radio" name="examOpt"><span class="exam-opt-letter">D</span><span class="exam-opt-text">此定律僅適用於靜止物體</span></label>
+      <div class="card exam-question-card" id="examQuestionCard">
+        <div class="exam-q-text" id="examQuestionContent">載入題目中...</div>
+        <div class="exam-options" id="examOptionsContainer">
+          <!-- 動態渲染選項 A/B/C/D -->
         </div>
       </div>
       <div class="exam-nav-buttons">
-        <button class="ghost"><i class="ti ti-arrow-left"></i>上一題</button>
-        <button class="ghost" style="margin-left:auto;">下一題<i class="ti ti-arrow-right"></i></button>
-        <button class="primary" style="background:var(--red-600);"><i class="ti ti-flag-3"></i>交卷</button>
+        <button class="ghost" id="examPrevBtn" onclick="navigateExamQuestion(-1)"><i class="ti ti-arrow-left"></i>上一題</button>
+        <button class="ghost" id="examNextBtn" style="margin-left:auto;" onclick="navigateExamQuestion(1)">下一題<i class="ti ti-arrow-right"></i></button>
+        <button class="primary" id="examSubmitBtn" style="background:var(--red-600);" onclick="confirmSubmitExam()"><i class="ti ti-flag-3"></i>交卷並結算</button>
       </div>
     </div>
     <div class="exam-side">
       <div class="card">
         <div class="section-title" style="margin-top:0;">答題卡</div>
-        <div class="exam-grid">
-          <button class="exam-num done">1</button><button class="exam-num done">2</button><button class="exam-num done">3</button><button class="exam-num done">4</button><button class="exam-num done">5</button><button class="exam-num done">6</button><button class="exam-num done">7</button><button class="exam-num current">8</button><button class="exam-num">9</button><button class="exam-num">10</button><button class="exam-num">11</button><button class="exam-num">12</button><button class="exam-num">13</button><button class="exam-num">14</button><button class="exam-num">15</button><button class="exam-num">16</button><button class="exam-num">17</button><button class="exam-num">18</button><button class="exam-num">19</button><button class="exam-num">20</button>
+        <div class="exam-grid" id="examAnswerCardGrid">
+          <!-- 動態題號按鈕 -->
         </div>
-        <div class="exam-legend">
-          <div><span class="dot done"></span>已作答（7）</div>
+        <div class="exam-legend" id="examLegend">
+          <div><span class="dot done"></span>已作答 (<span id="examLegendDoneCount">0</span>)</div>
           <div><span class="dot current"></span>目前題目</div>
-          <div><span class="dot todo"></span>未作答（12）</div>
+          <div><span class="dot todo"></span>未作答 (<span id="examLegendTodoCount">0</span>)</div>
         </div>
       </div>
     </div>
@@ -989,6 +1086,174 @@
   <footer class="footbar">© 2026 教育大市集（Education Marketplace）· 智慧題庫管理與學習分析系統</footer>
 </div>
 
+<!-- ========== Paper Creation Modal ========== -->
+<div class="modal-overlay" id="paperCreateModal">
+  <div class="modal-dialog" style="max-width:960px;width:95vw;max-height:92vh;display:flex;flex-direction:column;" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <div class="modal-title" style="display:flex;align-items:center;gap:8px;">
+        <i class="ti ti-clipboard-list" style="color:var(--teal-600);"></i>
+        <span id="paperModalHeaderTitle">建立固定試卷</span>
+      </div>
+      <i class="ti ti-x modal-close" onclick="closeCreatePaperModal()"></i>
+    </div>
+    
+    <div class="modal-body" style="padding:16px 20px;overflow-y:auto;flex:1;">
+      <!-- Section 1: 基本資訊與開放規則 -->
+      <div class="card" style="margin-bottom:16px;background:linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);border:1px solid var(--teal-200);">
+        <div style="font-size:14px;font-weight:600;color:var(--teal-900);margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+          <i class="ti ti-settings" style="color:var(--teal-600);"></i> 1. 試卷基本設定與開放對象
+        </div>
+        
+        <div class="grid grid-2" style="gap:12px;margin-bottom:12px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="paperNameInput"><span style="color:var(--red-600);">*</span> 試卷名稱</label>
+            <input type="text" id="paperNameInput" placeholder="例如：高二物理第 1 次段考模擬試卷、演算法期中評量" style="font-weight:500;">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="paperDurationInput">作答時間限制（分鐘）</label>
+            <input type="number" id="paperDurationInput" value="30" min="5" max="180" placeholder="30">
+          </div>
+        </div>
+
+        <div class="grid grid-2" style="gap:12px;margin-bottom:14px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="paperStartTimeInput"><i class="ti ti-calendar-time" style="color:var(--teal-600);"></i> 開放開始時間</label>
+            <input type="datetime-local" id="paperStartTimeInput" style="padding:6px 10px;font-size:13px;border-radius:6px;border:1px solid var(--line);width:100%;">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="paperEndTimeInput"><i class="ti ti-calendar-off" style="color:var(--amber-600);"></i> 開放結束時間</label>
+            <input type="datetime-local" id="paperEndTimeInput" style="padding:6px 10px;font-size:13px;border-radius:6px;border:1px solid var(--line);width:100%;">
+          </div>
+        </div>
+
+        <!-- 開放對象 (全部或指定班級) -->
+        <div style="background:#fff;padding:12px 14px;border:1px solid var(--line);border-radius:8px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+            <span><i class="ti ti-users" style="color:var(--teal-600);"></i> 開放對象（學生畫面將依此過濾顯示）</span>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="ghost" style="padding:2px 8px;font-size:11.5px;" onclick="setPaperAudienceAll(true)">全部學生</button>
+              <button type="button" class="ghost" style="padding:2px 8px;font-size:11.5px;" onclick="selectAllPaperAudienceClasses(true)">全選班級</button>
+              <button type="button" class="ghost" style="padding:2px 8px;font-size:11.5px;" onclick="selectAllPaperAudienceClasses(false)">清空選擇</button>
+            </div>
+          </div>
+          
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding-top:4px;">
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer;color:var(--teal-900);">
+              <input type="radio" name="paperAudienceType" id="paperAudienceTypeAll" value="ALL" checked onchange="togglePaperAudienceMode()">
+              <span>全部班級與學生</span>
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer;color:var(--blue-800);">
+              <input type="radio" name="paperAudienceType" id="paperAudienceTypeCustom" value="CUSTOM" onchange="togglePaperAudienceMode()">
+              <span>指定特定班級：</span>
+            </label>
+            <div id="paperAudienceClassesContainer" style="display:flex;gap:8px;flex-wrap:wrap;opacity:0.5;pointer-events:none;transition:opacity .2s;">
+              <label class="tag" style="background:#f1f5f9;cursor:pointer;padding:4px 8px;display:inline-flex;align-items:center;gap:4px;"><input type="checkbox" class="paper-class-chk" value="忠班"> 忠班</label>
+              <label class="tag" style="background:#f1f5f9;cursor:pointer;padding:4px 8px;display:inline-flex;align-items:center;gap:4px;"><input type="checkbox" class="paper-class-chk" value="孝班"> 孝班</label>
+              <label class="tag" style="background:#f1f5f9;cursor:pointer;padding:4px 8px;display:inline-flex;align-items:center;gap:4px;"><input type="checkbox" class="paper-class-chk" value="仁班"> 仁班</label>
+              <label class="tag" style="background:#f1f5f9;cursor:pointer;padding:4px 8px;display:inline-flex;align-items:center;gap:4px;"><input type="checkbox" class="paper-class-chk" value="愛班"> 愛班</label>
+              <label class="tag" style="background:#f1f5f9;cursor:pointer;padding:4px 8px;display:inline-flex;align-items:center;gap:4px;"><input type="checkbox" class="paper-class-chk" value="信班"> 信班</label>
+              <label class="tag" style="background:#f1f5f9;cursor:pointer;padding:4px 8px;display:inline-flex;align-items:center;gap:4px;"><input type="checkbox" class="paper-class-chk" value="義班"> 義班</label>
+              <label class="tag" style="background:#f1f5f9;cursor:pointer;padding:4px 8px;display:inline-flex;align-items:center;gap:4px;"><input type="checkbox" class="paper-class-chk" value="和班"> 和班</label>
+              <label class="tag" style="background:#f1f5f9;cursor:pointer;padding:4px 8px;display:inline-flex;align-items:center;gap:4px;"><input type="checkbox" class="paper-class-chk" value="平班"> 平班</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 交卷三大開關 -->
+        <div style="background:#f0fdf4;padding:12px 14px;border:1px solid #bbf7d0;border-radius:8px;">
+          <div style="font-size:13px;font-weight:600;color:#166534;margin-bottom:8px;">
+            <i class="ti ti-shield-check"></i> 交卷即時反饋設定（學生提交後即刻呈現規則）
+          </div>
+          <div class="grid grid-3" style="gap:10px;">
+            <label class="toggle-card" style="background:#fff;padding:10px 12px;border:1px solid #bbf7d0;border-radius:6px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
+              <div>
+                <div style="font-size:12.5px;font-weight:600;color:var(--ink);">即刻顯示成績</div>
+                <div style="font-size:11px;color:var(--ink-mute);">交卷後顯示得分與答對率</div>
+              </div>
+              <div class="switch on" id="paperSwitchScore" onclick="this.classList.toggle('on')"></div>
+            </label>
+
+            <label class="toggle-card" style="background:#fff;padding:10px 12px;border:1px solid #bbf7d0;border-radius:6px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
+              <div>
+                <div style="font-size:12.5px;font-weight:600;color:var(--ink);">即刻顯示答案</div>
+                <div style="font-size:11px;color:var(--ink-mute);">交卷後顯示每題正解解析</div>
+              </div>
+              <div class="switch on" id="paperSwitchAnswer" onclick="this.classList.toggle('on')"></div>
+            </label>
+
+            <label class="toggle-card" style="background:#fff;padding:10px 12px;border:1px solid #bbf7d0;border-radius:6px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
+              <div>
+                <div style="font-size:12.5px;font-weight:600;color:var(--ink);">即刻顯示排名</div>
+                <div style="font-size:11px;color:var(--ink-mute);">交卷後顯示在開放對象中名次</div>
+              </div>
+              <div class="switch on" id="paperSwitchRank" onclick="this.classList.toggle('on')"></div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: 勾選題庫題目 -->
+      <div class="card" style="padding:14px 16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:14px;font-weight:600;color:var(--teal-900);display:flex;align-items:center;gap:6px;">
+            <i class="ti ti-checkbox" style="color:var(--teal-600);"></i> 2. 勾選題庫試題
+            <span class="fk-badge" id="paperSelectedCountBadge" style="background:var(--teal-600);color:#fff;font-weight:600;padding:2px 10px;border-radius:12px;">已選 0 題</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button type="button" class="ghost" style="padding:4px 10px;font-size:12px;" onclick="toggleSelectAllFilteredPaperQuestions(true)"><i class="ti ti-check-all"></i> 全選目前篩選題目</button>
+            <button type="button" class="ghost" style="padding:4px 10px;font-size:12px;" onclick="clearAllSelectedPaperQuestions()"><i class="ti ti-square-x"></i> 清除選取</button>
+          </div>
+        </div>
+
+        <!-- 題庫篩選列 -->
+        <div class="filter-bar" style="margin-bottom:10px;background:var(--surface);padding:8px 12px;border-radius:8px;border:1px solid var(--line);">
+          <select id="paperQFilterDept" onchange="filterPaperQuestionPicker()"><option value="">全部科系</option></select>
+          <select id="paperQFilterSubject" onchange="filterPaperQuestionPicker()"><option value="">全部科目</option></select>
+          <select id="paperQFilterUnit" onchange="filterPaperQuestionPicker()"><option value="">全部單元</option></select>
+          <select id="paperQFilterDifficulty" onchange="filterPaperQuestionPicker()">
+            <option value="">全部難度</option>
+            <option value="易">基礎 (易)</option>
+            <option value="中">中等 (中)</option>
+            <option value="難">進階 (難)</option>
+          </select>
+          <input type="text" id="paperQFilterSearch" placeholder="🔍 搜尋題目內容關鍵字..." oninput="filterPaperQuestionPicker()" style="flex:1;min-width:180px;">
+        </div>
+
+        <!-- 題庫挑选题表格 -->
+        <div style="max-height:280px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;">
+          <table style="margin:0;">
+            <thead style="position:sticky;top:0;z-index:2;">
+              <tr>
+                <th style="width:40px;text-align:center;">
+                  <input type="checkbox" id="paperQHeaderCheckbox" onchange="toggleSelectAllCurrentPageQuestions(this.checked)" style="accent-color:var(--teal-600);width:15px;height:15px;cursor:pointer;">
+                </th>
+                <th>題目內容與選項預覽</th>
+                <th style="width:110px;">科系 / 科目</th>
+                <th style="width:110px;">單元</th>
+                <th style="width:70px;text-align:center;">難度</th>
+                <th style="width:60px;text-align:center;">正解</th>
+              </tr>
+            </thead>
+            <tbody id="paperQuestionTableBody">
+              <!-- 由 renderPaperQuestionPicker() 動態渲染 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="padding:12px 20px;display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border-top:1px solid var(--line);">
+      <div style="font-size:12.5px;color:var(--ink-soft);" id="paperFormSummaryText">
+        尚未選取題目
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="ghost" type="button" onclick="closeCreatePaperModal()"><i class="ti ti-x"></i> 取消</button>
+        <button class="primary" type="button" onclick="saveCreatePaperForm()"><i class="ti ti-device-floppy"></i> <span id="paperSaveBtnText">確認建立試卷</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ========== Global Modal ========== -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal-dialog" id="modalDialog" role="dialog" aria-modal="true">
@@ -1000,6 +1265,20 @@
     <div class="modal-footer" id="modalFooter">
       <button class="ghost" id="modalCancelBtn">取消</button>
       <button class="primary" id="modalConfirmBtn">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Paper Detail / Preview Modal ========== -->
+<div class="modal-overlay" id="paperPreviewModal">
+  <div class="modal-dialog" style="max-width:800px;width:95vw;max-height:90vh;display:flex;flex-direction:column;" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <div class="modal-title" id="paperPreviewTitle">試卷詳情預覽</div>
+      <i class="ti ti-x modal-close" onclick="document.getElementById('paperPreviewModal').classList.remove('active')"></i>
+    </div>
+    <div class="modal-body" id="paperPreviewBody" style="padding:16px 20px;overflow-y:auto;flex:1;"></div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;">
+      <button class="primary" onclick="document.getElementById('paperPreviewModal').classList.remove('active')">關閉</button>
     </div>
   </div>
 </div>
